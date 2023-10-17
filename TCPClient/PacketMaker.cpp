@@ -4,7 +4,7 @@
 #include <string>
 using namespace std;
 
-pair<char*, int> PacketMaker::MakeDefaultPacket(EPacket Type)
+pair<char*, int> PacketMaker::MakePacket(EPacket Type)
 {
 	int BufferSize = DefaultBufferSize;
 	char* Buffer = new char[BufferSize];
@@ -14,18 +14,18 @@ pair<char*, int> PacketMaker::MakeDefaultPacket(EPacket Type)
 	return make_pair(Buffer, BufferSize);
 }
 
-pair<char*, int> PacketMaker::MakeLogin_UserIDAck(const char* NewUserID)
+pair<char*, int> PacketMaker::MakePacket(EPacket Type, const char* NewData)
 {
 	//size code Data(UserID)
 	//[][] [][] [가변 데이타]
 
-	int PacketSize = (int)strlen(NewUserID);
+	int PacketSize = (int)strlen(NewData);
 	int BufferSize = DefaultBufferSize + PacketSize;
-	
-	char* Buffer = new char[BufferSize];
-	MakeHeader(Buffer, EPacket::C2S_Login_UserIDAck, PacketSize);
 
-	memcpy(&Buffer[4], NewUserID, PacketSize);
+	char* Buffer = new char[BufferSize];
+	MakeHeader(Buffer, Type, PacketSize);
+
+	memcpy(&Buffer[4], NewData, PacketSize);
 
 	return make_pair(Buffer, BufferSize);
 }

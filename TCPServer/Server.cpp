@@ -65,7 +65,7 @@ bool GetConfigFromFile()
 
 void ReqUserID(SOCKET* ClientSocket)
 {
-	pair<char*, int> BufferData = PacketMaker::MakeDefaultPacket(EPacket::S2C_Login_UserIDReq);
+	pair<char*, int> BufferData = PacketMaker::MakePacket(EPacket::S2C_Login_UserIDReq);
 
 	cout << "Request User ID" << endl;
 
@@ -74,7 +74,7 @@ void ReqUserID(SOCKET* ClientSocket)
 
 void ReqUserIDFailure(SOCKET* ClientSocket)
 {
-	pair<char*, int> BufferData = PacketMaker::MakeDefaultPacket(EPacket::S2C_Login_UserIDFailureReq);
+	pair<char*, int> BufferData = PacketMaker::MakePacket(EPacket::S2C_Login_UserIDFailureReq);
 
 	cout << "Request User ID Failure" << endl;
 
@@ -83,7 +83,7 @@ void ReqUserIDFailure(SOCKET* ClientSocket)
 
 void ReqNewUserNickName(SOCKET* ClientSocket)
 {
-	pair<char*, int> BufferData = PacketMaker::MakeDefaultPacket(EPacket::S2C_Login_NewUserNickNameReq);
+	pair<char*, int> BufferData = PacketMaker::MakePacket(EPacket::S2C_Login_NewUserNickNameReq);
 
 	cout << "Request New User NickName" << endl;
 
@@ -281,26 +281,58 @@ int main()
 										else
 										{
 											TempUserList[TempUserNumber].UserID = UserID;
+
+											ReqUserIDFailure(&Reads.fd_array[i]);
 										}
 									}
+									else
+									{
+										// ID 확인완료, 비밀번호 확인할 차례
+									}
 								}
-									break;
+								break;
 								case EPacket::C2S_Login_MakeNewUserReq:
 								{
 									cout << "C2S_Login_MakeNewUserReq" << endl;
-
 									ReqNewUserNickName(&Reads.fd_array[i]);
 								}
-									break;
+								break;
 								case EPacket::C2S_Login_UserIDReq:
 								{
 									cout << "C2S_Login_UserIDReq" << endl;
 									ReqUserID(&Reads.fd_array[i]);
 								}
-									break;
+								break;
+								case EPacket::C2S_Login_NewUserNickNameAck:
+								{
+									char UserNickName[100] = { 0, };
+									memcpy(&UserNickName, Buffer + 2, PacketSize - 2);
+
+									cout << "User NickName : " << UserNickName << endl;
+
+									// Create a SQL query string with a placeholder for the UserID
+									string SqlQuery = "SELECT * FROM userconfig WHERE NickName = ?";
+									// Prepare the SQL statement
+									Sql_PreStatement = Sql_Connection->prepareStatement(SqlQuery);
+									// Bind the UserID to the prepared statement
+									Sql_PreStatement->setString(1, UserNickName);
+									Sql_Result = Sql_PreStatement->executeQuery();
+
+									unsigned short TempUserNumber = (unsigned short)Reads.fd_array[i];
+									if (Sql_Result->rowsCount() > 0)
+									{
+										cout << "NickName Already Exist" << endl;
+
+									}
+									else
+									{
+										TempUserList[TempUserNumber].NickName = UserNickName;
+										cout << "NickName varified" << endl;
+									}
+								}
+								break;
 								}
 							}
-
 							delete[] Buffer;
 						}
 					}

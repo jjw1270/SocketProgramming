@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Packet.h"
+#include <utility>
 using namespace std;
 
 class PacketMaker
@@ -10,10 +11,10 @@ protected:
 
 public:
 	// Use this PacketMaker if does not have params
-	static pair<char*, int> MakeDefaultPacket(EPacket Type);
+	static pair<char*, int> MakePacket(EPacket Type);
 
-public:
-
+	// const char* params
+	static pair<char*, int> MakePacket(EPacket Type, const char* NewData);
 
 protected:
 	static char* MakeHeader(char* Buffer, EPacket Type, unsigned short Size);
@@ -28,10 +29,6 @@ public:
 		UserID = NewUserID;
 	}
 
-	//int UserNumber;
-
 	char* UserID;
 	char* NickName;
-
 };
-

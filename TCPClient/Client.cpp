@@ -58,6 +58,9 @@ unsigned WINAPI RecvThread(void* arg)
 				case EPacket::S2C_Login_UserIDFailureReq:
 					//cout << "User ID Failure Requested" << endl;
 					break;
+				case EPacket::S2C_Login_NewUserNickNameReq:
+					//cout << "New User NickName Requested" << endl;
+					break;
 				}
 			}
 		}
@@ -79,52 +82,70 @@ unsigned WINAPI SendThread(void* arg)
 		{
 			cout << "Enter User ID : ";
 			char UserID[100] = { 0, };
-			cin.getline(UserID, 100);
+			cin >> UserID;
+			cin.ignore();
+			//cin.getline(UserID, 100); ?
 
-			pair<char*, int> BufferData = PacketMaker::MakeLogin_UserIDAck(UserID);
+			pair<char*, int> BufferData = PacketMaker::MakePacket(EPacket::C2S_Login_UserIDAck, UserID);
 			int SendByte = send(ServerSocket, BufferData.first, BufferData.second, 0);
 			if (SendByte > 0)
 			{
 				CurrentPacket = EPacket::None;
 			}
 		}
+		break;
 		case EPacket::S2C_Login_UserIDFailureReq:
 		{
 			cout << "------------------------------------" << endl
-				 << "ID does not exist." << endl
-				 << "If you want make new ID, press Y," << endl
-				 << "If you want re-enter ID, press N." << endl
-				 << "------------------------------------" << endl
-				 << "(Y/N) : ";
+				<< "ID does not exist." << endl
+				<< "If you want make new ID, press Y," << endl
+				<< "If you want re-enter ID, press N." << endl
+				<< "------------------------------------" << endl
+				<< "(Y/N) : ";
 			char Check;
-			cin >> Check;
+			Check = cin.get();
 			switch (Check)
 			{
 			case 'y':
 			case 'Y':
 			{
-				pair<char*, int> BufferData = PacketMaker::MakeDefaultPacket(EPacket::C2S_Login_MakeNewUserReq);
+				pair<char*, int> BufferData = PacketMaker::MakePacket(EPacket::C2S_Login_MakeNewUserReq);
 				int SendByte = send(ServerSocket, BufferData.first, BufferData.second, 0);
 				if (SendByte > 0)
 				{
 					CurrentPacket = EPacket::None;
 				}
 			}
-				break;
+			break;
 			case 'n':
 			case 'N':
 			{
-				pair<char*, int> BufferData = PacketMaker::MakeDefaultPacket(EPacket::C2S_Login_UserIDReq);
+				pair<char*, int> BufferData = PacketMaker::MakePacket(EPacket::C2S_Login_UserIDReq);
 				int SendByte = send(ServerSocket, BufferData.first, BufferData.second, 0);
 				if (SendByte > 0)
 				{
 					CurrentPacket = EPacket::None;
 				}
 			}
-				break;
+			break;
 			default:
 				cout << "Input Error" << endl;
 				break;
+			}
+		}
+		break;
+		case EPacket::S2C_Login_NewUserNickNameReq:
+		{
+			cout << "Please Enter New User Nick Name : ";
+			char UserNickName[100] = { 0, };
+			cin.getline(UserNickName, 100);
+			cin.ignore();  // Reset input buffer
+
+			pair<char*, int> BufferData = PacketMaker::MakePacket(EPacket::C2S_Login_NewUserNickNameAck, UserNickName);
+			int SendByte = send(ServerSocket, BufferData.first, BufferData.second, 0);
+			if (SendByte > 0)
+			{
+				CurrentPacket = EPacket::None;
 			}
 		}
 		break;

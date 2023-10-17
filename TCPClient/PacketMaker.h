@@ -2,7 +2,6 @@
 
 #include "Packet.h"
 #include <utility>
-#include <iostream>
 using namespace std;
 
 class PacketMaker
@@ -12,29 +11,13 @@ protected:
 
 public:
 	// Use this PacketMaker if does not have params
-	static pair<char*, int> MakeDefaultPacket(EPacket Type);
+	static pair<char*, int> MakePacket(EPacket Type);
 
-public:
-	static pair<char*, int> MakeLogin_UserIDAck(const char* NewUserID);
+	// const char* params
+	static pair<char*, int> MakePacket(EPacket Type, const char* NewData);
 
 	//static pair<char*, int> MakeQuit(unsigned short ClientNumber);
 
 protected:
 	static char* MakeHeader(char* Buffer, EPacket Type, unsigned short Size);
 };
-
-class UserData
-{
-public:
-	UserData() {}
-	UserData(int NewUserID, char* NewNickName)
-	{
-		UserID = NewUserID;
-		NickName = NewNickName;
-	}
-
-	int UserID;
-	char* NickName;
-
-};
-
