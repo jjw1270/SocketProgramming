@@ -4,6 +4,16 @@
 #include <string>
 using namespace std;
 
+pair<char*, int> PacketMaker::MakeDefaultPacket(EPacket Type)
+{
+	int BufferSize = DefaultBufferSize;
+	char* Buffer = new char[BufferSize];
+
+	MakeHeader(Buffer, Type, 0);
+
+	return make_pair(Buffer, BufferSize);
+}
+
 pair<char*, int> PacketMaker::MakeLogin_UserIDAck(const char* NewUserID)
 {
 	//size code Data(UserID)
@@ -20,24 +30,24 @@ pair<char*, int> PacketMaker::MakeLogin_UserIDAck(const char* NewUserID)
 	return make_pair(Buffer, BufferSize);
 }
 
-pair<char*, int> PacketMaker::MakeQuit(unsigned short _UserID)
-{
-	//size code Data(ClientNumber) 
-	//[][] [][] [][]	
-	PacketQuitClient Packet;
-
-	int PacketSize = sizeof(Packet);
-	int BufferSize = DefaultBufferSize + PacketSize;
-	char* Buffer = new char[BufferSize];
-
-	MakeHeader(Buffer, EPacket::S2C_QuitClient, PacketSize);
-
-	//Packet.UserID = htons(_UserID);
-
-	memcpy(&Buffer[4], &Packet, PacketSize);
-
-	return make_pair(Buffer, BufferSize);
-}
+//pair<char*, int> PacketMaker::MakeQuit(unsigned short _UserID)
+//{
+//	//size code Data(ClientNumber) 
+//	//[][] [][] [][]	
+//	PacketQuitClient Packet;
+//
+//	int PacketSize = sizeof(Packet);
+//	int BufferSize = DefaultBufferSize + PacketSize;
+//	char* Buffer = new char[BufferSize];
+//
+//	MakeHeader(Buffer, EPacket::S2C_QuitClient, PacketSize);
+//
+//	//Packet.UserID = htons(_UserID);
+//
+//	memcpy(&Buffer[4], &Packet, PacketSize);
+//
+//	return make_pair(Buffer, BufferSize);
+//}
 
 char* PacketMaker::MakeHeader(char* Buffer, EPacket Type, unsigned short Size)
 {

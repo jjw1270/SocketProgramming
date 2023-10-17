@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Packet.h"
-#include <iostream>
 using namespace std;
 
 class PacketMaker
@@ -10,8 +9,10 @@ protected:
 	static const int DefaultBufferSize = 4;
 
 public:
-	static pair<char*, int> MakeLogin_UserIDReq();
-	static pair<char*, int> MakeLogin_UserIDFailureReq();
+	// Use this PacketMaker if does not have params
+	static pair<char*, int> MakeDefaultPacket(EPacket Type);
+
+public:
 
 
 protected:
@@ -22,14 +23,14 @@ class UserData
 {
 public:
 	UserData() {}
-	UserData(int NewUserID, char* NewNickName)
+	UserData(char* NewUserID)
 	{
-		srand((unsigned int)time(nullptr));
 		UserID = NewUserID;
-		NickName = NewNickName;
 	}
 
-	int UserID;
+	//int UserNumber;
+
+	char* UserID;
 	char* NickName;
 
 };

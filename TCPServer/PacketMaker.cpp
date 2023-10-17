@@ -4,22 +4,12 @@
 #include <string>
 using namespace std;
 
-pair<char*, int> PacketMaker::MakeLogin_UserIDReq()
+pair<char*, int> PacketMaker::MakeDefaultPacket(EPacket Type)
 {
 	int BufferSize = DefaultBufferSize;
 	char* Buffer = new char[BufferSize];
 
-	MakeHeader(Buffer, EPacket::S2C_Login_UserIDReq, 0);
-
-	return make_pair(Buffer, BufferSize);
-}
-
-pair<char*, int> PacketMaker::MakeLogin_UserIDFailureReq()
-{
-	int BufferSize = DefaultBufferSize;
-	char* Buffer = new char[BufferSize];
-
-	MakeHeader(Buffer, EPacket::S2C_Login_UserIDFailureReq, 0);
+	MakeHeader(Buffer, Type, 0);
 
 	return make_pair(Buffer, BufferSize);
 }

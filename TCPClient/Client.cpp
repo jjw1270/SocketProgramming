@@ -102,18 +102,30 @@ unsigned WINAPI SendThread(void* arg)
 			{
 			case 'y':
 			case 'Y':
-				cout << "Enter Y" << endl;
-
+			{
+				pair<char*, int> BufferData = PacketMaker::MakeDefaultPacket(EPacket::C2S_Login_MakeNewUserReq);
+				int SendByte = send(ServerSocket, BufferData.first, BufferData.second, 0);
+				if (SendByte > 0)
+				{
+					CurrentPacket = EPacket::None;
+				}
+			}
 				break;
 			case 'n':
 			case 'N':
-				cout << "Enter N" << endl;
-
+			{
+				pair<char*, int> BufferData = PacketMaker::MakeDefaultPacket(EPacket::C2S_Login_UserIDReq);
+				int SendByte = send(ServerSocket, BufferData.first, BufferData.second, 0);
+				if (SendByte > 0)
+				{
+					CurrentPacket = EPacket::None;
+				}
+			}
 				break;
 			default:
-				continue;
+				cout << "Input Error" << endl;
+				break;
 			}
-			
 		}
 		break;
 		}

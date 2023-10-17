@@ -11,9 +11,13 @@ protected:
 	static const int DefaultBufferSize = 4;
 
 public:
+	// Use this PacketMaker if does not have params
+	static pair<char*, int> MakeDefaultPacket(EPacket Type);
+
+public:
 	static pair<char*, int> MakeLogin_UserIDAck(const char* NewUserID);
 
-	static pair<char*, int> MakeQuit(unsigned short ClientNumber);
+	//static pair<char*, int> MakeQuit(unsigned short ClientNumber);
 
 protected:
 	static char* MakeHeader(char* Buffer, EPacket Type, unsigned short Size);

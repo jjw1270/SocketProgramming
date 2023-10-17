@@ -5,6 +5,8 @@
 
 enum class EPacket
 {
+	None								= 0,
+
 	S2C_Login_UserIDReq					= 100,
 	C2S_Login_UserIDAck					= 101,
 	
@@ -12,11 +14,11 @@ enum class EPacket
 	C2S_Login_UserIDReq					= 103,
 	C2S_Login_MakeNewUserReq			= 110,
 
-	S2C_Login_NewUserPwdReq				= 111,
-	C2S_Login_NewUserPwdAck				= 112,
+	S2C_Login_NewUserNickNameReq		= 111,
+	C2S_Login_NewUserNickNameAck		= 112,
 
-	S2C_Login_NewUserNickNameReq		= 113,
-	C2S_Login_NewUserNickNameAck		= 114,
+	S2C_Login_NewUserPwdReq				= 113,
+	C2S_Login_NewUserPwdAck				= 114,
 
 	S2C_Login_UserPwdReq				= 120,
 	C2S_Login_UserPwdAck				= 121,
@@ -34,15 +36,10 @@ enum class EPacket
 
 #pragma pack(1)
 
-typedef struct _PacketLogin_UserIDAck
-{
-	unsigned int UserID;
-} PacketLogin_UserIDAck;
-
-typedef struct _PacketQuitClient
-{
-	unsigned int UserID;
-} PacketQuitClient;
+//typedef struct _PacketQuitClient
+//{
+//	unsigned int UserID;
+//} PacketQuitClient;
 
 #pragma pack()
 

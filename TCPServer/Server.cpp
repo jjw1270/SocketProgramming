@@ -29,6 +29,7 @@ string password;
 
 map<unsigned short, UserData> SessionList;
 
+map<unsigned short, UserData> TempUserList;
 
 bool GetConfigFromFile()
 {
@@ -64,7 +65,7 @@ bool GetConfigFromFile()
 
 void ReqUserID(SOCKET* ClientSocket)
 {
-	pair<char*, int> BufferData = PacketMaker::MakeLogin_UserIDReq();
+	pair<char*, int> BufferData = PacketMaker::MakeDefaultPacket(EPacket::S2C_Login_UserIDReq);
 
 	cout << "Request User ID" << endl;
 
@@ -73,9 +74,18 @@ void ReqUserID(SOCKET* ClientSocket)
 
 void ReqUserIDFailure(SOCKET* ClientSocket)
 {
-	pair<char*, int> BufferData = PacketMaker::MakeLogin_UserIDReq();
+	pair<char*, int> BufferData = PacketMaker::MakeDefaultPacket(EPacket::S2C_Login_UserIDFailureReq);
 
 	cout << "Request User ID Failure" << endl;
+
+	send(*ClientSocket, BufferData.first, BufferData.second, 0);
+}
+
+void ReqNewUserNickName(SOCKET* ClientSocket)
+{
+	pair<char*, int> BufferData = PacketMaker::MakeDefaultPacket(EPacket::S2C_Login_NewUserNickNameReq);
+
+	cout << "Request New User NickName" << endl;
 
 	send(*ClientSocket, BufferData.first, BufferData.second, 0);
 }
@@ -94,6 +104,7 @@ int main()
 	sql::Driver* Sql_Driver;
 	sql::Connection* Sql_Connection;
 	sql::PreparedStatement* Sql_PreStatement;
+	sql::Statement* Sql_Statement;
 	sql::ResultSet* Sql_Result;
 
 	try
@@ -159,7 +170,7 @@ int main()
 
 	cout << "-----------Launch Server------------" << endl;
 
-	while (1)
+	while (true)
 	{
 		CopyReads = Reads;
 
@@ -239,15 +250,16 @@ int main()
 								switch ((EPacket)Code)
 								{
 								case EPacket::C2S_Login_UserIDAck:
+								{
 									char UserID[100] = { 0, };
 									memcpy(&UserID, Buffer + 2, PacketSize - 2);
 
 									cout << "Client ID : " << UserID << endl;
 
 									// Create a SQL query string with a placeholder for the UserID
-									string sqlQuery = "SELECT * FROM userconfig WHERE ID = ?";
+									string SqlQuery = "SELECT * FROM userconfig WHERE ID = ?";
 									// Prepare the SQL statement
-									Sql_PreStatement = Sql_Connection->prepareStatement(sqlQuery);
+									Sql_PreStatement = Sql_Connection->prepareStatement(SqlQuery);
 									// Bind the UserID to the prepared statement
 									Sql_PreStatement->setString(1, UserID);
 									Sql_Result = Sql_PreStatement->executeQuery();
@@ -256,8 +268,35 @@ int main()
 									{
 										cout << "ID Does Not Exist." << endl;
 
-										ReqUserIDFailure(&Reads.fd_array[i]);
+										unsigned short TempUserNumber = (unsigned short)Reads.fd_array[i];
+										// check TempUser already exist
+										if (TempUserList.count(TempUserNumber) == 0)
+										{
+											UserData NewTempUser(UserID);
+
+											TempUserList[TempUserNumber] = NewTempUser;
+
+											ReqUserIDFailure(&Reads.fd_array[i]);
+										}
+										else
+										{
+											TempUserList[TempUserNumber].UserID = UserID;
+										}
 									}
+								}
+									break;
+								case EPacket::C2S_Login_MakeNewUserReq:
+								{
+									cout << "C2S_Login_MakeNewUserReq" << endl;
+
+									ReqNewUserNickName(&Reads.fd_array[i]);
+								}
+									break;
+								case EPacket::C2S_Login_UserIDReq:
+								{
+									cout << "C2S_Login_UserIDReq" << endl;
+									ReqUserID(&Reads.fd_array[i]);
+								}
 									break;
 								}
 							}
@@ -270,8 +309,10 @@ int main()
 		}
 	}
 
+	// Clean Up
 
 	delete Sql_Result;
+	delete Sql_Statement;
 	delete Sql_PreStatement;
 	delete Sql_Connection;
 

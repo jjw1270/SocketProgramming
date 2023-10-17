@@ -16,11 +16,11 @@ enum class EPacket
 	C2S_Login_UserIDReq					= 103,
 	C2S_Login_MakeNewUserReq			= 110,
 
-	S2C_Login_NewUserPwdReq				= 111,
-	C2S_Login_NewUserPwdAck				= 112,
+	S2C_Login_NewUserNickNameReq		= 111,
+	C2S_Login_NewUserNickNameAck		= 112,
 
-	S2C_Login_NewUserNickNameReq		= 113,
-	C2S_Login_NewUserNickNameAck		= 114,
+	S2C_Login_NewUserPwdReq				= 113,
+	C2S_Login_NewUserPwdAck				= 114,
 
 	S2C_Login_UserPwdReq				= 120,
 	C2S_Login_UserPwdAck				= 121,
