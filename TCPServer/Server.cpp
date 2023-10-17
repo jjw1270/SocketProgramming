@@ -342,15 +342,13 @@ int main()
 	}
 
 	// Clean Up
+	closesocket(ListenSocket);
+	WSACleanup();
 
 	delete Sql_Result;
 	delete Sql_Statement;
 	delete Sql_PreStatement;
 	delete Sql_Connection;
-
-	closesocket(ListenSocket);
-
-	WSACleanup();
 
 	return 0;
 }

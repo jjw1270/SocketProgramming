@@ -2,6 +2,7 @@
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 
 #include <iostream>
+#include <string>
 #include <process.h>
 using namespace std;
 
@@ -84,7 +85,6 @@ unsigned WINAPI SendThread(void* arg)
 			char UserID[100] = { 0, };
 			cin >> UserID;
 			cin.ignore();
-			//cin.getline(UserID, 100); ?
 
 			pair<char*, int> BufferData = PacketMaker::MakePacket(EPacket::C2S_Login_UserIDAck, UserID);
 			int SendByte = send(ServerSocket, BufferData.first, BufferData.second, 0);
@@ -102,8 +102,11 @@ unsigned WINAPI SendThread(void* arg)
 				<< "If you want re-enter ID, press N." << endl
 				<< "------------------------------------" << endl
 				<< "(Y/N) : ";
-			char Check;
-			Check = cin.get();
+
+			char Check = 0;
+			cin.ignore();
+			cin >> Check;
+			cout << Check;
 			switch (Check)
 			{
 			case 'y':
@@ -138,8 +141,8 @@ unsigned WINAPI SendThread(void* arg)
 		{
 			cout << "Please Enter New User Nick Name : ";
 			char UserNickName[100] = { 0, };
-			cin.getline(UserNickName, 100);
-			cin.ignore();  // Reset input buffer
+			cin >> UserNickName;
+			cin.ignore();
 
 			pair<char*, int> BufferData = PacketMaker::MakePacket(EPacket::C2S_Login_NewUserNickNameAck, UserNickName);
 			int SendByte = send(ServerSocket, BufferData.first, BufferData.second, 0);
