@@ -11,6 +11,8 @@ protected:
 
 public:
 	static pair<char*, int> MakeLogin_UserIDReq();
+	static pair<char*, int> MakeLogin_UserIDFailureReq();
+
 
 protected:
 	static char* MakeHeader(char* Buffer, EPacket Type, unsigned short Size);

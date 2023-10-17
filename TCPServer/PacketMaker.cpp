@@ -14,6 +14,16 @@ pair<char*, int> PacketMaker::MakeLogin_UserIDReq()
 	return make_pair(Buffer, BufferSize);
 }
 
+pair<char*, int> PacketMaker::MakeLogin_UserIDFailureReq()
+{
+	int BufferSize = DefaultBufferSize;
+	char* Buffer = new char[BufferSize];
+
+	MakeHeader(Buffer, EPacket::S2C_Login_UserIDFailureReq, 0);
+
+	return make_pair(Buffer, BufferSize);
+}
+
 char* PacketMaker::MakeHeader(char* Buffer, EPacket Type, unsigned short Size)
 {
 	//size   code

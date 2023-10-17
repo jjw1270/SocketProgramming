@@ -66,9 +66,19 @@ void ReqUserID(SOCKET* ClientSocket)
 {
 	pair<char*, int> BufferData = PacketMaker::MakeLogin_UserIDReq();
 
+	cout << "Request User ID" << endl;
+
 	send(*ClientSocket, BufferData.first, BufferData.second, 0);
 }
 
+void ReqUserIDFailure(SOCKET* ClientSocket)
+{
+	pair<char*, int> BufferData = PacketMaker::MakeLogin_UserIDReq();
+
+	cout << "Request User ID Failure" << endl;
+
+	send(*ClientSocket, BufferData.first, BufferData.second, 0);
+}
 
 void RecvError(SOCKET& Soket);
 
@@ -98,6 +108,8 @@ int main()
 		system("pause");
 		exit(-1);
 	}
+
+	Sql_Connection->setSchema("tcpproject");
 
 	WSADATA WsaData;
 	int Result = WSAStartup(MAKEWORD(2, 2), &WsaData);
@@ -223,15 +235,29 @@ int main()
 								memcpy(&Code, Buffer, 2);
 								Code = ntohs(Code);
 
+								// Data
 								switch ((EPacket)Code)
 								{
 								case EPacket::C2S_Login_UserIDAck:
-									// Data
 									char UserID[100] = { 0, };
 									memcpy(&UserID, Buffer + 2, PacketSize - 2);
 
 									cout << "Client ID : " << UserID << endl;
 
+									// Create a SQL query string with a placeholder for the UserID
+									string sqlQuery = "SELECT * FROM userconfig WHERE ID = ?";
+									// Prepare the SQL statement
+									Sql_PreStatement = Sql_Connection->prepareStatement(sqlQuery);
+									// Bind the UserID to the prepared statement
+									Sql_PreStatement->setString(1, UserID);
+									Sql_Result = Sql_PreStatement->executeQuery();
+
+									if (Sql_Result->rowsCount() == 0)
+									{
+										cout << "ID Does Not Exist." << endl;
+
+										ReqUserIDFailure(&Reads.fd_array[i]);
+									}
 									break;
 								}
 							}

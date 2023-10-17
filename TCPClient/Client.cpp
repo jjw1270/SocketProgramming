@@ -11,6 +11,8 @@ using namespace std;
 #include "PacketMaker.h"
 #include "Packet.h"
 
+#pragma comment(lib, "ws2_32")
+
 // map<unsigned short, UserData> SessionList;
 
 EPacket CurrentPacket;
@@ -51,6 +53,10 @@ unsigned WINAPI RecvThread(void* arg)
 				switch (CurrentPacket)
 				{
 				case EPacket::S2C_Login_UserIDReq:
+					//cout << "User ID Requested" << endl;
+					break;
+				case EPacket::S2C_Login_UserIDFailureReq:
+					//cout << "User ID Failure Requested" << endl;
 					break;
 				}
 			}
@@ -77,17 +83,44 @@ unsigned WINAPI SendThread(void* arg)
 
 			pair<char*, int> BufferData = PacketMaker::MakeLogin_UserIDAck(UserID);
 			int SendByte = send(ServerSocket, BufferData.first, BufferData.second, 0);
+			if (SendByte > 0)
+			{
+				CurrentPacket = EPacket::None;
+			}
+		}
+		case EPacket::S2C_Login_UserIDFailureReq:
+		{
+			cout << "------------------------------------" << endl
+				 << "ID does not exist." << endl
+				 << "If you want make new ID, press Y," << endl
+				 << "If you want re-enter ID, press N." << endl
+				 << "------------------------------------" << endl
+				 << "(Y/N) : ";
+			char Check;
+			cin >> Check;
+			switch (Check)
+			{
+			case 'y':
+			case 'Y':
+				cout << "Enter Y" << endl;
+
+				break;
+			case 'n':
+			case 'N':
+				cout << "Enter N" << endl;
+
+				break;
+			default:
+				continue;
+			}
+			
 		}
 		break;
 		}
-
-		CurrentPacket = EPacket::None;
 	}
 
 	return 0;
 }
-
-#pragma comment(lib, "ws2_32")
 
 int main()
 {
@@ -123,6 +156,10 @@ int main()
 	{
 		cout << "connect Error : " << GetLastError() << endl;
 		exit(-1);
+	}
+	else
+	{
+		cout << "Connect to Server" << endl;
 	}
 
 	HANDLE ThreadHandles[2];
