@@ -63,6 +63,13 @@ bool GetConfigFromFile()
 	return true;
 }
 
+void CastMessage(SOCKET* ClientSocket, const char* NewMessage)
+{
+	pair<char*, int> BufferData = PacketMaker::MakePacket(EPacket::S2C_CastMessage, NewMessage);
+
+	send(*ClientSocket, BufferData.first, BufferData.second, 0);
+}
+
 void ReqUserID(SOCKET* ClientSocket)
 {
 	pair<char*, int> BufferData = PacketMaker::MakePacket(EPacket::S2C_Login_UserIDReq);
@@ -89,6 +96,16 @@ void ReqNewUserNickName(SOCKET* ClientSocket)
 
 	send(*ClientSocket, BufferData.first, BufferData.second, 0);
 }
+
+void ReqNewUserPwd(SOCKET* ClientSocket)
+{
+	pair<char*, int> BufferData = PacketMaker::MakePacket(EPacket::S2C_Login_NewUserPwdReq);
+
+	cout << "Request New User pwd" << endl;
+
+	send(*ClientSocket, BufferData.first, BufferData.second, 0);
+}
+
 
 void RecvError(SOCKET& Soket);
 
@@ -272,9 +289,9 @@ int main()
 										// check TempUser already exist
 										if (TempUserList.count(TempUserNumber) == 0)
 										{
+											cout << "Make new Temp User" << endl;
 											UserData NewTempUser(UserID);
-
-											TempUserList[TempUserNumber] = NewTempUser;
+											TempUserList.emplace(TempUserNumber, NewTempUser);
 
 											ReqUserIDFailure(&Reads.fd_array[i]);
 										}
@@ -314,7 +331,7 @@ int main()
 									string SqlQuery = "SELECT * FROM userconfig WHERE NickName = ?";
 									// Prepare the SQL statement
 									Sql_PreStatement = Sql_Connection->prepareStatement(SqlQuery);
-									// Bind the UserID to the prepared statement
+									// Bind the UserNickName to the prepared statement
 									Sql_PreStatement->setString(1, UserNickName);
 									Sql_Result = Sql_PreStatement->executeQuery();
 
@@ -322,15 +339,46 @@ int main()
 									if (Sql_Result->rowsCount() > 0)
 									{
 										cout << "NickName Already Exist" << endl;
+										CastMessage(&Reads.fd_array[i], "Nick Name Already Exist.");
 
+										ReqNewUserNickName(&Reads.fd_array[i]);
 									}
 									else
 									{
 										TempUserList[TempUserNumber].NickName = UserNickName;
-										cout << "NickName varified" << endl;
+										ReqNewUserPwd(&Reads.fd_array[i]);
 									}
 								}
 								break;
+								case EPacket::C2S_Login_NewUserPwdAck:
+								{
+									char UserPwd[100] = { 0, };
+									memcpy(&UserPwd, Buffer + 2, PacketSize - 2);
+
+									cout << "User password : " << UserPwd << endl;
+
+									cout << TempUserList[(unsigned short)Reads.fd_array[i]].UserID << endl;
+
+									unsigned short TempUserNumber = (unsigned short)Reads.fd_array[i];
+									// Create a SQL query string with a placeholder for the UserID
+									string SqlQuery = "INSERT INTO userconfig(ID, Password, NickName) VALUES(?,?,?)";
+									// Prepare the SQL statement
+									Sql_PreStatement = Sql_Connection->prepareStatement(SqlQuery);
+									// Bind the Userconfig data to the prepared statement
+									Sql_PreStatement->setString(1, TempUserList[TempUserNumber].UserID);
+									Sql_PreStatement->setString(2, UserPwd);
+									Sql_PreStatement->setString(3, TempUserList[TempUserNumber].NickName);
+
+									Sql_PreStatement->execute();
+
+									cout << "User Registed" << endl;
+									CastMessage(&Reads.fd_array[i], "<< User Registed! >>");
+									ReqUserID(&Reads.fd_array[i]);
+								}
+								break;
+
+								default:
+									break;
 								}
 							}
 							delete[] Buffer;

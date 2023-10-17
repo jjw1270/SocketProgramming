@@ -2,6 +2,7 @@
 
 #include "Packet.h"
 #include <utility>
+#include <string>
 using namespace std;
 
 class PacketMaker
@@ -24,11 +25,11 @@ class UserData
 {
 public:
 	UserData() {}
-	UserData(char* NewUserID)
+	UserData(const string& NewUserID)
 	{
 		UserID = NewUserID;
 	}
 
-	char* UserID;
-	char* NickName;
+	string UserID;
+	string NickName;
 };

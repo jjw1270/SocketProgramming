@@ -7,6 +7,9 @@ enum class EPacket
 {
 	None								= 0,
 
+	S2C_CastMessage						= 1,
+	C2S_CastMessage						= 2,
+
 	S2C_Login_UserIDReq					= 100,
 	C2S_Login_UserIDAck					= 101,
 	

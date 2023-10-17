@@ -53,6 +53,14 @@ unsigned WINAPI RecvThread(void* arg)
 
 				switch (CurrentPacket)
 				{
+				case EPacket::S2C_CastMessage:
+				{
+					cout << "Server Send Messages : ";
+					char Message[1024] = { 0, };
+					memcpy(&Message, Buffer + 2, PacketSize - 2);
+					cout << Message << endl;
+				}
+					break;
 				case EPacket::S2C_Login_UserIDReq:
 					//cout << "User ID Requested" << endl;
 					break;
@@ -61,6 +69,9 @@ unsigned WINAPI RecvThread(void* arg)
 					break;
 				case EPacket::S2C_Login_NewUserNickNameReq:
 					//cout << "New User NickName Requested" << endl;
+					break;
+				case EPacket::S2C_Login_NewUserPwdReq:
+					//cout << "New User Pwd Requested" << endl;
 					break;
 				}
 			}
@@ -103,10 +114,15 @@ unsigned WINAPI SendThread(void* arg)
 				<< "------------------------------------" << endl
 				<< "(Y/N) : ";
 
-			char Check = 0;
-			cin.ignore();
+			// If cin buffer has value, clear
+			if (cin.rdbuf()->in_avail() > 0)
+			{
+				cin.ignore();
+			}
+			char Check;
 			cin >> Check;
-			cout << Check;
+			cin.ignore();
+
 			switch (Check)
 			{
 			case 'y':
@@ -152,6 +168,25 @@ unsigned WINAPI SendThread(void* arg)
 			}
 		}
 		break;
+		case EPacket::S2C_Login_NewUserPwdReq:
+		{
+			cout << "Please Enter New User Password : ";
+			char UserPwd[100] = { 0, };
+			cin >> UserPwd;
+			cin.ignore();
+
+			pair<char*, int> BufferData = PacketMaker::MakePacket(EPacket::C2S_Login_NewUserPwdAck, UserPwd);
+			int SendByte = send(ServerSocket, BufferData.first, BufferData.second, 0);
+			if (SendByte > 0)
+			{
+				CurrentPacket = EPacket::None;
+			}
+		}
+		break;
+
+
+		default:
+			break;
 		}
 	}
 
