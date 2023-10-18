@@ -1,6 +1,8 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <process.h>
+
 using namespace std;
 
 #include "Packet.h"
@@ -23,15 +25,13 @@ using namespace std;
 fd_set Reads;
 fd_set CopyReads;
 
-string server;
-string username;
-string password;
-
-map<unsigned short, UserData> SessionList;
-
+// Used for Regist User
 map<unsigned short, UserData> TempUserList;
 
-bool GetConfigFromFile()
+// Use when User Login
+map<unsigned short, UserData> SessionList;
+
+bool GetConfigFromFile(string& OutServer, string& OutUserName, string& OutPassword)
 {
 	ifstream ConfigFile("config.txt");
 	if (!ConfigFile.is_open())
@@ -46,88 +46,72 @@ bool GetConfigFromFile()
 	while (getline(ConfigFile, Line)) {
 		if (Start = Line.find("Server = ") != string::npos) {
 			End = Line.find('\n', Start);
-			server = Line.substr(Start + 8, End);		// Extract server information
+			OutServer = Line.substr(Start + 8, End);		// Extract server information
 		}
 		else if (Start = Line.find("Username = ") != string::npos)
 		{
 			End = Line.find('\n', Start);
-			username = Line.substr(Start + 10, End);	// Extract username
+			OutUserName = Line.substr(Start + 10, End);	// Extract username
 		}
 		else if (Start = Line.find("Password = ") != string::npos)
 		{
 			End = Line.find('\n', Start);
-			password = Line.substr(Start + 10, End);	// Extract password
+			OutPassword = Line.substr(Start + 10, End);	// Extract password
 		}
 	}
 	ConfigFile.close();
 	return true;
 }
 
-void CastMessage(SOCKET* ClientSocket, const char* NewMessage)
+bool SendPacket(SOCKET* ClientSocket, const EPacket& PacketToSend)
 {
-	pair<char*, int> BufferData = PacketMaker::MakePacket(EPacket::S2C_CastMessage, NewMessage);
+	pair<char*, int> BufferData = PacketMaker::MakePacket(PacketToSend);
 
-	send(*ClientSocket, BufferData.first, BufferData.second, 0);
+	int SendByte = send(*ClientSocket, BufferData.first, BufferData.second, 0);
+	if (SendByte <= 0)
+	{
+		cout << "Send Error" << GetLastError() << endl;
+		return false;
+	}
+	return true;
 }
 
-void ReqUserID(SOCKET* ClientSocket)
+bool SendPacket(SOCKET* ClientSocket, const EPacket& PacketToSend, const char* MessageToSend)
 {
-	pair<char*, int> BufferData = PacketMaker::MakePacket(EPacket::S2C_Login_UserIDReq);
+	pair<char*, int> BufferData = PacketMaker::MakePacket(PacketToSend, MessageToSend);
 
-	cout << "Request User ID" << endl;
-
-	send(*ClientSocket, BufferData.first, BufferData.second, 0);
+	int SendByte = send(*ClientSocket, BufferData.first, BufferData.second, 0);
+	if (SendByte <= 0)
+	{
+		cout << "Send Error" << GetLastError() << endl;
+		return false;
+	}
+	return true;
 }
 
-void ReqUserIDFailure(SOCKET* ClientSocket)
-{
-	pair<char*, int> BufferData = PacketMaker::MakePacket(EPacket::S2C_Login_UserIDFailureReq);
+unsigned WINAPI ServerThread(void* arg);
 
-	cout << "Request User ID Failure" << endl;
-
-	send(*ClientSocket, BufferData.first, BufferData.second, 0);
-}
-
-void ReqNewUserNickName(SOCKET* ClientSocket)
-{
-	pair<char*, int> BufferData = PacketMaker::MakePacket(EPacket::S2C_Login_NewUserNickNameReq);
-
-	cout << "Request New User NickName" << endl;
-
-	send(*ClientSocket, BufferData.first, BufferData.second, 0);
-}
-
-void ReqNewUserPwd(SOCKET* ClientSocket)
-{
-	pair<char*, int> BufferData = PacketMaker::MakePacket(EPacket::S2C_Login_NewUserPwdReq);
-
-	cout << "Request New User pwd" << endl;
-
-	send(*ClientSocket, BufferData.first, BufferData.second, 0);
-}
-
-
-void RecvError(SOCKET& Soket);
+sql::Connection* Sql_Connection;
 
 int main()
 {
-	bool GetConfigSuccess = GetConfigFromFile();
+	string Server;
+	string Username;
+	string Password;
+	bool GetConfigSuccess = GetConfigFromFile(Server, Username, Password);
 	if (!GetConfigSuccess)
 	{
 		cout << "Get Config txt Error" << endl;
+		system("pause");
 		exit(-1);
 	}
 
 	sql::Driver* Sql_Driver;
-	sql::Connection* Sql_Connection;
-	sql::PreparedStatement* Sql_PreStatement;
-	sql::Statement* Sql_Statement;
-	sql::ResultSet* Sql_Result;
 
 	try
 	{
 		Sql_Driver = get_driver_instance();
-		Sql_Connection = Sql_Driver->connect(server, username, password);  // 서버에 연결
+		Sql_Connection = Sql_Driver->connect(Server, Username, Password);  // 서버에 연결
 		cout << "Connect DB Server" << endl;
 	}
 	catch (sql::SQLException e)
@@ -173,7 +157,7 @@ int main()
 	Result = listen(ListenSocket, SOMAXCONN);  //Socket, 한번에 요청 가능한 최대 접속 승인 수
 	if (Result == SOCKET_ERROR)
 	{
-		cout << "listen Error : " << GetLastError() << endl;
+		cout << "Listen Error : " << GetLastError() << endl;
 		system("pause");
 		exit(-1);
 	}
@@ -192,7 +176,6 @@ int main()
 		CopyReads = Reads;
 
 		int ChangeSocketCount = select(0, &CopyReads, 0, 0, &Timeout);
-
 		if (ChangeSocketCount > 0)
 		{
 			for (int i = 0; i < (int)Reads.fd_count; ++i)
@@ -221,165 +204,9 @@ int main()
 						cout << "connected : " << IP << endl;
 
 						// create thread
-
-						// send req login
-						ReqUserID(&ClientSocket);
+						_beginthreadex(nullptr, 0, ServerThread, (void*)&Reads.fd_array[i], 0, nullptr);
 
 						break;
-					}
-					else //recv
-					{
-						// Recv (size)
-						unsigned short PacketSize = 0;
-						int RecvByte = recv(Reads.fd_array[i], (char*)(&PacketSize), 2, MSG_WAITALL);
-
-						if (RecvByte == 0 || RecvByte < 0)
-						{
-							//close, recv Error
-							RecvError(Reads.fd_array[i]);
-							break;
-						}
-						else
-						{
-							//Recv (code, packet)
-							PacketSize = ntohs(PacketSize);
-							char* Buffer = new char[PacketSize];
-
-							int RecvByte = recv(Reads.fd_array[i], Buffer, PacketSize, MSG_WAITALL);
-							if (RecvByte == 0 || RecvByte < 0)
-							{
-								//close, recv Error
-								RecvError(Reads.fd_array[i]);
-								break;
-							}
-							else
-							{
-								//code 
-								//[][]
-								unsigned short Code = 0;
-								memcpy(&Code, Buffer, 2);
-								Code = ntohs(Code);
-
-								// Data
-								switch ((EPacket)Code)
-								{
-								case EPacket::C2S_Login_UserIDAck:
-								{
-									char UserID[100] = { 0, };
-									memcpy(&UserID, Buffer + 2, PacketSize - 2);
-
-									cout << "Client ID : " << UserID << endl;
-
-									// Create a SQL query string with a placeholder for the UserID
-									string SqlQuery = "SELECT * FROM userconfig WHERE ID = ?";
-									// Prepare the SQL statement
-									Sql_PreStatement = Sql_Connection->prepareStatement(SqlQuery);
-									// Bind the UserID to the prepared statement
-									Sql_PreStatement->setString(1, UserID);
-									Sql_Result = Sql_PreStatement->executeQuery();
-
-									if (Sql_Result->rowsCount() == 0)
-									{
-										cout << "ID Does Not Exist." << endl;
-
-										unsigned short TempUserNumber = (unsigned short)Reads.fd_array[i];
-										// check TempUser already exist
-										if (TempUserList.count(TempUserNumber) == 0)
-										{
-											cout << "Make new Temp User" << endl;
-											UserData NewTempUser(UserID);
-											TempUserList.emplace(TempUserNumber, NewTempUser);
-
-											ReqUserIDFailure(&Reads.fd_array[i]);
-										}
-										else
-										{
-											TempUserList[TempUserNumber].UserID = UserID;
-
-											ReqUserIDFailure(&Reads.fd_array[i]);
-										}
-									}
-									else
-									{
-										// ID 확인완료, 비밀번호 확인할 차례
-									}
-								}
-								break;
-								case EPacket::C2S_Login_MakeNewUserReq:
-								{
-									cout << "C2S_Login_MakeNewUserReq" << endl;
-									ReqNewUserNickName(&Reads.fd_array[i]);
-								}
-								break;
-								case EPacket::C2S_Login_UserIDReq:
-								{
-									cout << "C2S_Login_UserIDReq" << endl;
-									ReqUserID(&Reads.fd_array[i]);
-								}
-								break;
-								case EPacket::C2S_Login_NewUserNickNameAck:
-								{
-									char UserNickName[100] = { 0, };
-									memcpy(&UserNickName, Buffer + 2, PacketSize - 2);
-
-									cout << "User NickName : " << UserNickName << endl;
-
-									// Create a SQL query string with a placeholder for the UserID
-									string SqlQuery = "SELECT * FROM userconfig WHERE NickName = ?";
-									// Prepare the SQL statement
-									Sql_PreStatement = Sql_Connection->prepareStatement(SqlQuery);
-									// Bind the UserNickName to the prepared statement
-									Sql_PreStatement->setString(1, UserNickName);
-									Sql_Result = Sql_PreStatement->executeQuery();
-
-									unsigned short TempUserNumber = (unsigned short)Reads.fd_array[i];
-									if (Sql_Result->rowsCount() > 0)
-									{
-										cout << "NickName Already Exist" << endl;
-										CastMessage(&Reads.fd_array[i], "Nick Name Already Exist.");
-
-										ReqNewUserNickName(&Reads.fd_array[i]);
-									}
-									else
-									{
-										TempUserList[TempUserNumber].NickName = UserNickName;
-										ReqNewUserPwd(&Reads.fd_array[i]);
-									}
-								}
-								break;
-								case EPacket::C2S_Login_NewUserPwdAck:
-								{
-									char UserPwd[100] = { 0, };
-									memcpy(&UserPwd, Buffer + 2, PacketSize - 2);
-
-									cout << "User password : " << UserPwd << endl;
-
-									cout << TempUserList[(unsigned short)Reads.fd_array[i]].UserID << endl;
-
-									unsigned short TempUserNumber = (unsigned short)Reads.fd_array[i];
-									// Create a SQL query string with a placeholder for the UserID
-									string SqlQuery = "INSERT INTO userconfig(ID, Password, NickName) VALUES(?,?,?)";
-									// Prepare the SQL statement
-									Sql_PreStatement = Sql_Connection->prepareStatement(SqlQuery);
-									// Bind the Userconfig data to the prepared statement
-									Sql_PreStatement->setString(1, TempUserList[TempUserNumber].UserID);
-									Sql_PreStatement->setString(2, UserPwd);
-									Sql_PreStatement->setString(3, TempUserList[TempUserNumber].NickName);
-
-									Sql_PreStatement->execute();
-
-									cout << "User Registed" << endl;
-									CastMessage(&Reads.fd_array[i], "<< User Registed! >>");
-									ReqUserID(&Reads.fd_array[i]);
-								}
-								break;
-
-								default:
-									break;
-								}
-							}
-							delete[] Buffer;
-						}
 					}
 				}
 			}
@@ -392,12 +219,10 @@ int main()
 	}
 
 	// Clean Up
+
 	closesocket(ListenSocket);
 	WSACleanup();
 
-	delete Sql_Result;
-	delete Sql_Statement;
-	delete Sql_PreStatement;
 	delete Sql_Connection;
 
 	system("pause");
@@ -405,21 +230,254 @@ int main()
 	return 0;
 }
 
-void RecvError(SOCKET& Soket)
+void RecvError(SOCKET& ClientSocket)
 {
 	SOCKADDR_IN ClientSocketAddr;
 	int ClientSockAddrLength = sizeof(ClientSocketAddr);
-	getpeername(Soket, (SOCKADDR*)&ClientSocketAddr, &ClientSockAddrLength);
+	getpeername(ClientSocket, (SOCKADDR*)&ClientSocketAddr, &ClientSockAddrLength);
 
-	SOCKET DisconnectSocket = Soket;
-	closesocket(Soket);
-	FD_CLR(Soket, &Reads);
+	SOCKET DisconnectSocket = ClientSocket;
+	closesocket(ClientSocket);
+	FD_CLR(ClientSocket, &Reads);
 	CopyReads = Reads;
 
-	// SessionList.erase(SessionList.find((unsigned short)DisconnectSocket));
+	if (TempUserList.count((unsigned short)DisconnectSocket) > 0)
+	{
+		TempUserList.erase(TempUserList.find((unsigned short)DisconnectSocket));
+	}
 
 	char IP[1024] = { 0, };
 	inet_ntop(AF_INET, &ClientSocketAddr.sin_addr.s_addr, IP, 1024);
 	cout << "disconnected : " << IP << endl;
 }
 
+void SendError(SOCKET& ClientSocket)
+{
+	SOCKADDR_IN ClientSocketAddr;
+	int ClientSockAddrLength = sizeof(ClientSocketAddr);
+	getpeername(ClientSocket, (SOCKADDR*)&ClientSocketAddr, &ClientSockAddrLength);
+
+	SOCKET DisconnectSocket = ClientSocket;
+	closesocket(ClientSocket);
+	FD_CLR(ClientSocket, &Reads);
+	CopyReads = Reads;
+
+	if (TempUserList.count((unsigned short)DisconnectSocket) > 0)
+	{
+		TempUserList.erase(TempUserList.find((unsigned short)DisconnectSocket));
+	}
+
+	char IP[1024] = { 0, };
+	inet_ntop(AF_INET, &ClientSocketAddr.sin_addr.s_addr, IP, 1024);
+	cout << "disconnected : " << IP << endl;
+}
+
+unsigned WINAPI ServerThread(void* arg)
+{
+	SOCKET ClientSocket = *(SOCKET*)arg;
+
+	// send req login
+	bool bSendSuccess = SendPacket(&ClientSocket, EPacket::S2C_Login_UserIDReq);
+	if (!bSendSuccess)
+	{
+		SendError(ClientSocket);
+	}
+	else
+	{
+		while (true)
+		{
+			// Recv PacketSize
+			unsigned short PacketSize = 0;
+			int RecvByte = recv(ClientSocket, (char*)(&PacketSize), 2, MSG_WAITALL);
+			if (RecvByte == 0 || RecvByte < 0)
+			{
+				//close, recv Error
+				RecvError(ClientSocket);
+				break;
+			}
+
+			//Recv Code, Data
+			PacketSize = ntohs(PacketSize);
+			char* Buffer = new char[PacketSize];
+
+			RecvByte = recv(ClientSocket, Buffer, PacketSize, MSG_WAITALL);
+			if (RecvByte == 0 || RecvByte < 0)
+			{
+				//close, recv Error
+				RecvError(ClientSocket);
+				break;
+			}
+
+			//code 
+			//[][]
+			unsigned short Code = 0;
+			memcpy(&Code, Buffer, 2);
+			Code = ntohs(Code);
+
+			// Data
+			unsigned short DataSize = PacketSize - 2;
+			bool bSendSuccess = false;
+			switch ((EPacket)Code)
+			{
+			case EPacket::C2S_Login_UserIDAck:
+			{
+				char UserID[100] = { 0, };
+				memcpy(&UserID, Buffer + 2, DataSize);
+
+				//cout << "[" << (unsigned short)ClientSocket << "] Client ID : " << UserID << endl;
+				printf("[%d] Client ID : ", (unsigned short)ClientSocket);
+
+				// Check ID Exist in DB
+				string SqlQuery = "SELECT * FROM userconfig WHERE ID = ?";
+				sql::PreparedStatement* Sql_PreStatement = Sql_Connection->prepareStatement(SqlQuery);
+				Sql_PreStatement->setString(1, UserID);
+				sql::ResultSet* Sql_Result = Sql_PreStatement->executeQuery();
+
+				// If ID doesnt exist in db
+				if (Sql_Result->rowsCount() == 0)
+				{
+					cout << "ID Does Not Exist." << endl;
+
+					unsigned short TempUserNumber = (unsigned short)ClientSocket;
+					// check TempUser already exist
+					if (TempUserList.count(TempUserNumber) == 0)
+					{
+						cout << "Make new Temp User" << endl;
+						UserData NewTempUser(UserID);
+						TempUserList.emplace(TempUserNumber, NewTempUser);
+
+						bSendSuccess = SendPacket(&ClientSocket, EPacket::S2C_Login_UserIDFailureReq);
+						if (!bSendSuccess)
+						{
+							SendError(ClientSocket);
+							break;
+						}
+					}
+					else
+					{
+						TempUserList[TempUserNumber].UserID = UserID;
+
+						bSendSuccess = SendPacket(&ClientSocket, EPacket::S2C_Login_UserIDFailureReq);
+						if (!bSendSuccess)
+						{
+							SendError(ClientSocket);
+							break;
+						}
+					}
+				}
+				else
+				{
+					// ID 확인완료, 비밀번호 확인할 차례
+				}
+
+				delete Sql_Result;
+				delete Sql_PreStatement;
+			}
+			break;
+			case EPacket::C2S_Login_MakeNewUserReq:
+			{
+				cout << "Make New User Requested" << endl;
+				bSendSuccess = SendPacket(&ClientSocket, EPacket::S2C_Login_NewUserNickNameReq);
+				if (!bSendSuccess)
+				{
+					SendError(ClientSocket);
+					break;
+				}
+			}
+			break;
+			case EPacket::C2S_Login_UserIDReq:
+			{
+				cout << "C2S_Login_UserIDReq" << endl;
+				bSendSuccess = SendPacket(&ClientSocket, EPacket::S2C_Login_UserIDReq);
+				if (!bSendSuccess)
+				{
+					SendError(ClientSocket);
+					break;
+				}
+			}
+			break;
+			case EPacket::C2S_Login_NewUserNickNameAck:
+			{
+				char UserNickName[100] = { 0, };
+				memcpy(&UserNickName, Buffer + 2, DataSize);
+
+				cout << "User NickName : " << UserNickName << endl;
+
+				// Check NickName already exist in db (NickName cant overlaped)
+				string SqlQuery = "SELECT * FROM userconfig WHERE NickName = ?";
+				sql::PreparedStatement* Sql_PreStatement = Sql_Connection->prepareStatement(SqlQuery);
+				Sql_PreStatement->setString(1, UserNickName);
+				sql::ResultSet* Sql_Result = Sql_PreStatement->executeQuery();
+
+				unsigned short TempUserNumber = (unsigned short)ClientSocket;
+				if (Sql_Result->rowsCount() > 0)
+				{
+					cout << "NickName Already Exist" << endl;
+					bSendSuccess = SendPacket(&ClientSocket, EPacket::S2C_CastMessage, "Nick Name Already Exist.");
+					if (!bSendSuccess)
+					{
+						SendError(ClientSocket);
+						break;
+					}
+					bSendSuccess = SendPacket(&ClientSocket, EPacket::S2C_Login_NewUserNickNameReq);
+					if (!bSendSuccess)
+					{
+						SendError(ClientSocket);
+						break;
+					}
+				}
+				else
+				{
+					TempUserList[TempUserNumber].NickName = UserNickName;
+					bSendSuccess = SendPacket(&ClientSocket, EPacket::S2C_Login_NewUserPwdReq);
+					if (!bSendSuccess)
+					{
+						SendError(ClientSocket);
+						break;
+					}
+				}
+
+				delete Sql_Result;
+				delete Sql_PreStatement;
+			}
+			break;
+			case EPacket::C2S_Login_NewUserPwdAck:
+			{
+				char UserPwd[100] = { 0, };
+				memcpy(&UserPwd, Buffer + 2, DataSize);
+
+				cout << "User password : " << UserPwd << endl;
+
+				unsigned short TempUserNumber = (unsigned short)ClientSocket;
+				cout << TempUserList[TempUserNumber].UserID << endl;
+				// Create New Userconfig
+				string SqlQuery = "INSERT INTO userconfig(ID, Password, NickName) VALUES(?,?,?)";
+				sql::PreparedStatement* Sql_PreStatement = Sql_Connection->prepareStatement(SqlQuery);
+				Sql_PreStatement->setString(1, TempUserList[TempUserNumber].UserID);
+				Sql_PreStatement->setString(2, UserPwd);
+				Sql_PreStatement->setString(3, TempUserList[TempUserNumber].NickName);
+				Sql_PreStatement->execute();
+
+				cout << "New User Registed" << endl;
+				bSendSuccess = SendPacket(&ClientSocket, EPacket::S2C_CastMessage, "<< New User Registed! >>");
+				if (!bSendSuccess)
+				{
+					SendError(ClientSocket);
+					break;
+				}bSendSuccess = SendPacket(&ClientSocket, EPacket::S2C_Login_UserIDReq);
+				if (!bSendSuccess)
+				{
+					SendError(ClientSocket);
+					break;
+				}}
+			break;
+
+			default:
+				break;
+			}
+			delete[] Buffer;
+		}
+	}
+
+	return 0;
+}

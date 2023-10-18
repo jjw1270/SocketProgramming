@@ -14,8 +14,6 @@ using namespace std;
 
 #pragma comment(lib, "ws2_32")
 
-// map<unsigned short, UserData> SessionList;
-
 EPacket CurrentPacket;
 
 unsigned WINAPI RecvThread(void* arg)
