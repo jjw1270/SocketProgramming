@@ -61,18 +61,32 @@ unsigned WINAPI RecvThread(void* arg)
 					memcpy(&Message, Buffer + 2, PacketSize - 2);
 					cout << Message << endl;
 				}
-					break;
-				case EPacket::S2C_Login_UserIDReq:
-					//cout << "User ID Requested" << endl;
-					break;
-				case EPacket::S2C_Login_UserIDFailureReq:
-					//cout << "User ID Failure Requested" << endl;
-					break;
-				case EPacket::S2C_Login_NewUserNickNameReq:
-					//cout << "New User NickName Requested" << endl;
-					break;
-				case EPacket::S2C_Login_NewUserPwdReq:
-					//cout << "New User Pwd Requested" << endl;
+				break;
+				//case EPacket::S2C_Login_UserIDReq:
+				//	//cout << "User ID Requested" << endl;
+				//	break;
+				//case EPacket::S2C_Login_UserIDFailureReq:
+				//	//cout << "User ID Failure Requested" << endl;
+				//	break;
+				//case EPacket::S2C_Login_NewUserNickNameReq:
+				//	//cout << "New User NickName Requested" << endl;
+				//	break;
+				//case EPacket::S2C_Login_NewUserPwdReq:
+				//	//cout << "New User Pwd Requested" << endl;
+				//	break;
+				//case EPacket::S2C_Login_UserPwdReq:
+				//	//cout << "User Pwd Requested" << endl;
+				//	break;
+				//case EPacket::S2C_Login_UserPwdFailureReq:
+				//	//cout << "User Pwd Failure Requested" << endl;
+				//	break;
+				case EPacket::S2C_Login_LoginAck:
+				{
+					cout << "Server Send Messages : ";
+					char Message[1024] = { 0, };
+					memcpy(&Message, Buffer + 2, PacketSize - 2);
+					cout << Message << endl;
+				}
 					break;
 				}
 			}
@@ -112,8 +126,9 @@ unsigned WINAPI SendThread(void* arg)
 			else
 			{
 				//Send Error
+				cout << "Send Error : " << GetLastError() << endl;
 				bIsRunning = false;
-				break;
+				goto EndThread;
 			}
 		}
 		break;
@@ -126,16 +141,17 @@ unsigned WINAPI SendThread(void* arg)
 				<< "------------------------------------" << endl
 				<< "(Y/N) : ";
 
-			// If cin buffer has value, clear
-			if (cin.rdbuf()->in_avail() > 0)
-			{
-				cin.ignore();
-			}
-			char Check;
+			char Check[10] = { 0, };
 			cin >> Check;
 			cin.ignore();
 
-			switch (Check)
+			if (strlen(Check) > 1)
+			{
+				cout << "Input Error" << endl;
+				continue;
+			}
+
+			switch (Check[0])
 			{
 			case 'y':
 			case 'Y':
@@ -148,8 +164,9 @@ unsigned WINAPI SendThread(void* arg)
 				else
 				{
 					//Send Error
+					cout << "Send Error : " << GetLastError() << endl;
 					bIsRunning = false;
-					break;
+					goto EndThread;
 				}
 			}
 			break;
@@ -164,8 +181,9 @@ unsigned WINAPI SendThread(void* arg)
 				else
 				{
 					//Send Error
+					cout << "Send Error : " << GetLastError() << endl;
 					bIsRunning = false;
-					break;
+					goto EndThread;
 				}
 			}
 			break;
@@ -196,14 +214,42 @@ unsigned WINAPI SendThread(void* arg)
 			else
 			{
 				//Send Error
+				cout << "Send Error : " << GetLastError() << endl;
 				bIsRunning = false;
-				break;
+				goto EndThread;
 			}
 		}
 		break;
 		case EPacket::S2C_Login_NewUserPwdReq:
 		{
 			cout << "Please Enter New User Password : ";
+			char NewUserPwd[101] = { 0, };
+			cin >> NewUserPwd;
+			cin.ignore();
+
+			if (strlen(NewUserPwd) > 100)
+			{
+				cout << "Password is too long." << endl;
+				continue;
+			}
+
+			bSendSuccess = PacketMaker::SendPacket(&ServerSocket, EPacket::C2S_Login_NewUserPwdAck, NewUserPwd);
+			if (bSendSuccess)
+			{
+				CurrentPacket = EPacket::None;
+			}
+			else
+			{
+				//Send Error
+				cout << "Send Error : " << GetLastError() << endl;
+				bIsRunning = false;
+				goto EndThread;
+			}
+		}
+		break;
+		case EPacket::S2C_Login_UserPwdReq:
+		{
+			cout << "Please Enter Password : ";
 			char UserPwd[101] = { 0, };
 			cin >> UserPwd;
 			cin.ignore();
@@ -214,7 +260,7 @@ unsigned WINAPI SendThread(void* arg)
 				continue;
 			}
 
-			bSendSuccess = PacketMaker::SendPacket(&ServerSocket, EPacket::C2S_Login_NewUserPwdAck, UserPwd);
+			bSendSuccess = PacketMaker::SendPacket(&ServerSocket, EPacket::C2S_Login_UserPwdAck, UserPwd);
 			if (bSendSuccess)
 			{
 				CurrentPacket = EPacket::None;
@@ -222,17 +268,85 @@ unsigned WINAPI SendThread(void* arg)
 			else
 			{
 				//Send Error
+				cout << "Send Error : " << GetLastError() << endl;
 				bIsRunning = false;
+				goto EndThread;
+			}
+
+		}
+		break;
+		case EPacket::S2C_Login_UserPwdFailureReq:
+		{
+			cout << "------------------------------------" << endl
+				<< "Password is incorrect." << endl
+				<< "If you want re-enter password, press Y," << endl
+				<< "If you want re-enter ID, press N." << endl
+				<< "------------------------------------" << endl
+				<< "(Y/N) : ";
+
+			char Check[10] = { 0, };
+			cin >> Check;
+			cin.ignore();
+
+			if (strlen(Check) > 1)
+			{
+				cout << "Input Error" << endl;
+				continue;
+			}
+
+			switch (Check[0])
+			{
+			case 'y':
+			case 'Y':
+			{
+				bSendSuccess = PacketMaker::SendPacket(&ServerSocket, EPacket::C2S_Login_UserPwdReq);
+				if (bSendSuccess)
+				{
+					CurrentPacket = EPacket::None;
+				}
+				else
+				{
+					//Send Error
+					cout << "Send Error : " << GetLastError() << endl;
+					bIsRunning = false;
+					goto EndThread;
+				}
+			}
+			break;
+			case 'n':
+			case 'N':
+			{
+				bSendSuccess = PacketMaker::SendPacket(&ServerSocket, EPacket::C2S_Login_UserIDReq);
+				if (bSendSuccess)
+				{
+					CurrentPacket = EPacket::None;
+				}
+				else
+				{
+					//Send Error
+					cout << "Send Error : " << GetLastError() << endl;
+					bIsRunning = false;
+					goto EndThread;
+				}
+			}
+			break;
+			default:
+				cout << "Input Error" << endl;
 				break;
 			}
 		}
 		break;
-
+		case EPacket::S2C_Login_LoginAck:
+		{
+			CurrentPacket = EPacket::None;
+		}
+		break;
 		default:
 			break;
 		}
 	}
 
+EndThread:
 	return 0;
 }
 
