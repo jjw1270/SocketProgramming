@@ -205,6 +205,8 @@ int main()
 
 void RecvError(SOCKET& ClientSocket)
 {
+	cout << "Server Recv Error : " << GetLastError() << endl;
+
 	SOCKADDR_IN ClientSocketAddr;
 	int ClientSockAddrLength = sizeof(ClientSocketAddr);
 	getpeername(ClientSocket, (SOCKADDR*)&ClientSocketAddr, &ClientSockAddrLength);
@@ -214,23 +216,30 @@ void RecvError(SOCKET& ClientSocket)
 	FD_CLR(ClientSocket, &Reads);
 	CopyReads = Reads;
 
+	char IP[1024] = { 0, };
+	inet_ntop(AF_INET, &ClientSocketAddr.sin_addr.s_addr, IP, 1024);
+	cout << "disconnected : " << IP << endl;
+
 	if (TempUserList.count((unsigned short)DisconnectSocket) > 0)
 	{
 		TempUserList.erase(TempUserList.find((unsigned short)DisconnectSocket));
 	}
+
+	string DisconnectUserNickName = UserList[(unsigned short)DisconnectSocket].NickName;
 
 	if (UserList.count((unsigned short)DisconnectSocket) > 0)
 	{
 		UserList.erase(UserList.find((unsigned short)DisconnectSocket));
 	}
 
-	char IP[1024] = { 0, };
-	inet_ntop(AF_INET, &ClientSocketAddr.sin_addr.s_addr, IP, 1024);
-	cout << "disconnected : " << IP << endl;
+	string BroadCastMessage = DisconnectUserNickName + " has left.";
+	PacketMaker::SendPacketToAllConnectedClients(UserList, EPacket::S2C_CastMessage, BroadCastMessage.data());
 }
 
 void SendError(SOCKET& ClientSocket)
 {
+	cout << "Server Send Error : " << GetLastError() << endl;
+
 	SOCKADDR_IN ClientSocketAddr;
 	int ClientSockAddrLength = sizeof(ClientSocketAddr);
 	getpeername(ClientSocket, (SOCKADDR*)&ClientSocketAddr, &ClientSockAddrLength);
@@ -239,6 +248,10 @@ void SendError(SOCKET& ClientSocket)
 	closesocket(ClientSocket);
 	FD_CLR(ClientSocket, &Reads);
 	CopyReads = Reads;
+
+	char IP[1024] = { 0, };
+	inet_ntop(AF_INET, &ClientSocketAddr.sin_addr.s_addr, IP, 1024);
+	cout << "disconnected : " << IP << endl;
 
 	if (TempUserList.count((unsigned short)DisconnectSocket) > 0)
 	{
@@ -249,10 +262,6 @@ void SendError(SOCKET& ClientSocket)
 	{
 		UserList.erase(UserList.find((unsigned short)DisconnectSocket));
 	}
-
-	char IP[1024] = { 0, };
-	inet_ntop(AF_INET, &ClientSocketAddr.sin_addr.s_addr, IP, 1024);
-	cout << "disconnected : " << IP << endl;
 }
 
 unsigned WINAPI ServerThread(void* arg)
@@ -497,18 +506,63 @@ unsigned WINAPI ServerThread(void* arg)
 
 					if (strcmp(UserPwd, dbPassword.c_str()) == 0)
 					{
-						// if correct, Login
+						// if correct
 						cout << "Password Matched" << endl;
 
-						UserList[UserNumber].NickName = Sql_Result->getString("NickName");
+						string UserNickName = Sql_Result->getString("NickName");
 
-						string WelcomeMessage = "Welcome, " + UserList[UserNumber].NickName + "!";
-						
-						bSendSuccess = PacketMaker::SendPacket(&ClientSocket, EPacket::S2C_CastMessage, WelcomeMessage.data());
-						if (!bSendSuccess)
+						// Check Login Overlaping
+						bool bIsLoginOverlap = false;
+						for (const auto& UserPair : UserList)
 						{
-							SendError(ClientSocket);
+							if (UserPair.second.NickName == UserNickName)
+							{
+								bIsLoginOverlap = true;
+								break;
+							}
+						}
+
+						if (bIsLoginOverlap)
+						{
+							// Login Overlapped
+							bSendSuccess = PacketMaker::SendPacket(&ClientSocket, EPacket::S2C_CastMessage, "You are already logged in.");
+							if (!bSendSuccess)
+							{
+								SendError(ClientSocket);
+								break;
+							}
+
+							bSendSuccess = PacketMaker::SendPacket(&ClientSocket, EPacket::S2C_Login_UserIDReq);
+							if (!bSendSuccess)
+							{
+								SendError(ClientSocket);
+								break;
+							}
+
 							break;
+						}
+						else
+						{
+							// Login Success
+							UserList[UserNumber].UserSocket = ClientSocket;
+							UserList[UserNumber].NickName = UserNickName;
+
+							bSendSuccess = PacketMaker::SendPacket(&ClientSocket, EPacket::S2C_LoginSuccess);
+							if (!bSendSuccess)
+							{
+								SendError(ClientSocket);
+								break;
+							}
+
+							bSendSuccess = PacketMaker::SendPacket(&ClientSocket, EPacket::S2C_CanChat);
+							if (!bSendSuccess)
+							{
+								SendError(ClientSocket);
+								break;
+							}
+
+							string BroadCastMessage = UserList[UserNumber].NickName + " is here!";
+							PacketMaker::SendPacketToAllConnectedClients(UserList, EPacket::S2C_CastMessage, BroadCastMessage.data(), UserNumber);
 						}
 					}
 					else
@@ -526,7 +580,7 @@ unsigned WINAPI ServerThread(void* arg)
 				}
 				else
 				{
-					// DB Error, it can never be executed
+					// DB Error, this will never be executed
 					RecvError(ClientSocket);
 					// cout << "User not found in the database." << endl;
 				}
@@ -544,6 +598,15 @@ unsigned WINAPI ServerThread(void* arg)
 					SendError(ClientSocket);
 					break;
 				}
+			}
+			break;
+			case EPacket::C2S_Chat:
+			{
+				char RecvChat[1024] = { 0, };
+				memcpy(&RecvChat, Buffer + 2, DataSize);
+
+				string BroadCastMessage = UserList[UserNumber].NickName + " : " + RecvChat;
+				PacketMaker::SendPacketToAllConnectedClients(UserList, EPacket::S2C_Chat, BroadCastMessage.data(), UserNumber);
 			}
 			break;
 			default:

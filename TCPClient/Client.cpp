@@ -50,36 +50,31 @@ unsigned WINAPI RecvThread(void* arg)
 				memcpy(&Code, Buffer, 2);
 				Code = ntohs(Code);
 
-				CurrentPacket = (EPacket)(Code);
-
-				switch (CurrentPacket)
-				{
-				case EPacket::S2C_CastMessage:
+				if ((EPacket)(Code) == EPacket::S2C_CastMessage)
 				{
 					cout << "Server Send Messages : ";
 					char Message[1024] = { 0, };
 					memcpy(&Message, Buffer + 2, PacketSize - 2);
 					cout << Message << endl;
 				}
-				break;
-				//case EPacket::S2C_Login_UserIDReq:
-				//	//cout << "User ID Requested" << endl;
-				//	break;
-				//case EPacket::S2C_Login_UserIDFailureReq:
-				//	//cout << "User ID Failure Requested" << endl;
-				//	break;
-				//case EPacket::S2C_Login_NewUserNickNameReq:
-				//	//cout << "New User NickName Requested" << endl;
-				//	break;
-				//case EPacket::S2C_Login_NewUserPwdReq:
-				//	//cout << "New User Pwd Requested" << endl;
-				//	break;
-				//case EPacket::S2C_Login_UserPwdReq:
-				//	//cout << "User Pwd Requested" << endl;
-				//	break;
-				//case EPacket::S2C_Login_UserPwdFailureReq:
-				//	//cout << "User Pwd Failure Requested" << endl;
-				//	break;
+				else if ((EPacket)(Code) == EPacket::S2C_Chat)
+				{
+					char Message[1024] = { 0, };
+					memcpy(&Message, Buffer + 2, PacketSize - 2);
+					cout << Message << endl;
+				}
+				else
+				{
+					CurrentPacket = (EPacket)(Code);
+
+					switch (CurrentPacket)
+					{
+					case EPacket::S2C_LoginSuccess:
+						system("cls"); // Clear the console
+						cout << "Now you can Chat!" << endl;
+						cout << "---------------------------------------------------------" << endl;
+						break;
+					}
 				}
 			}
 		}
@@ -328,7 +323,21 @@ unsigned WINAPI SendThread(void* arg)
 			}
 		}
 		break;
+		case EPacket::S2C_CanChat:
+		{
+			string ChatInput;
+			getline(cin, ChatInput);
 
+			bSendSuccess = PacketMaker::SendPacket(&ServerSocket, EPacket::C2S_Chat, ChatInput.data());
+			if (!bSendSuccess)
+			{
+				//Send Error
+				cout << "Send Error : " << GetLastError() << endl;
+				bIsRunning = false;
+				goto EndThread;
+			}
+		}
+		break;
 		default:
 			break;
 		}
