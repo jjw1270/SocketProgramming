@@ -1,8 +1,33 @@
 #include "PacketMaker.h"
-#include <winsock.h>
 #include <iostream>
 #include <string>
 using namespace std;
+
+bool PacketMaker::SendPacket(SOCKET* ServerSocket, const EPacket& PacketToSend)
+{
+	pair<char*, int> BufferData = MakePacket(PacketToSend);
+
+	int SendByte = send(*ServerSocket, BufferData.first, BufferData.second, 0);
+	if (SendByte <= 0)
+	{
+		cout << "Send Error" << GetLastError() << endl;
+		return false;
+	}
+	return true;
+}
+
+bool PacketMaker::SendPacket(SOCKET* ServerSocket, const EPacket& PacketToSend, const char* MessageToSend)
+{
+	pair<char*, int> BufferData = MakePacket(PacketToSend, MessageToSend);
+
+	int SendByte = send(*ServerSocket, BufferData.first, BufferData.second, 0);
+	if (SendByte <= 0)
+	{
+		cout << "Send Error" << GetLastError() << endl;
+		return false;
+	}
+	return true;
+}
 
 pair<char*, int> PacketMaker::MakePacket(EPacket Type)
 {

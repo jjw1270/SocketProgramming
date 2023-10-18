@@ -63,32 +63,6 @@ bool GetConfigFromFile(string& OutServer, string& OutUserName, string& OutPasswo
 	return true;
 }
 
-bool SendPacket(SOCKET* ClientSocket, const EPacket& PacketToSend)
-{
-	pair<char*, int> BufferData = PacketMaker::MakePacket(PacketToSend);
-
-	int SendByte = send(*ClientSocket, BufferData.first, BufferData.second, 0);
-	if (SendByte <= 0)
-	{
-		cout << "Send Error" << GetLastError() << endl;
-		return false;
-	}
-	return true;
-}
-
-bool SendPacket(SOCKET* ClientSocket, const EPacket& PacketToSend, const char* MessageToSend)
-{
-	pair<char*, int> BufferData = PacketMaker::MakePacket(PacketToSend, MessageToSend);
-
-	int SendByte = send(*ClientSocket, BufferData.first, BufferData.second, 0);
-	if (SendByte <= 0)
-	{
-		cout << "Send Error" << GetLastError() << endl;
-		return false;
-	}
-	return true;
-}
-
 unsigned WINAPI ServerThread(void* arg);
 
 sql::Connection* Sql_Connection;
@@ -192,8 +166,7 @@ int main()
 						SOCKET ClientSocket = accept(ListenSocket, (SOCKADDR*)&ClientSocketAddr, &ClientSockAddrLength);
 						if (ClientSocket == INVALID_SOCKET)
 						{
-							cout << "Accept Error" << endl;
-							cout << "Socket Error Num : " << GetLastError() << endl;
+							cout << "Accept Error : " << GetLastError() << endl;
 							continue;
 						}
 
@@ -204,7 +177,7 @@ int main()
 						cout << "connected : " << IP << endl;
 
 						// create thread
-						_beginthreadex(nullptr, 0, ServerThread, (void*)&Reads.fd_array[i], 0, nullptr);
+						_beginthreadex(nullptr, 0, ServerThread, (void*)&ClientSocket, 0, nullptr);
 
 						break;
 					}
@@ -274,10 +247,12 @@ void SendError(SOCKET& ClientSocket)
 
 unsigned WINAPI ServerThread(void* arg)
 {
+	cout << "Server Thread Started" << endl;
+
 	SOCKET ClientSocket = *(SOCKET*)arg;
 
 	// send req login
-	bool bSendSuccess = SendPacket(&ClientSocket, EPacket::S2C_Login_UserIDReq);
+	bool bSendSuccess = PacketMaker::SendPacket(&ClientSocket, EPacket::S2C_Login_UserIDReq);
 	if (!bSendSuccess)
 	{
 		SendError(ClientSocket);
@@ -324,8 +299,7 @@ unsigned WINAPI ServerThread(void* arg)
 				char UserID[100] = { 0, };
 				memcpy(&UserID, Buffer + 2, DataSize);
 
-				//cout << "[" << (unsigned short)ClientSocket << "] Client ID : " << UserID << endl;
-				printf("[%d] Client ID : ", (unsigned short)ClientSocket);
+				printf("[%d] Client ID : %s", (unsigned short)ClientSocket, UserID);
 
 				// Check ID Exist in DB
 				string SqlQuery = "SELECT * FROM userconfig WHERE ID = ?";
@@ -346,7 +320,7 @@ unsigned WINAPI ServerThread(void* arg)
 						UserData NewTempUser(UserID);
 						TempUserList.emplace(TempUserNumber, NewTempUser);
 
-						bSendSuccess = SendPacket(&ClientSocket, EPacket::S2C_Login_UserIDFailureReq);
+						bSendSuccess = PacketMaker::SendPacket(&ClientSocket, EPacket::S2C_Login_UserIDFailureReq);
 						if (!bSendSuccess)
 						{
 							SendError(ClientSocket);
@@ -357,7 +331,7 @@ unsigned WINAPI ServerThread(void* arg)
 					{
 						TempUserList[TempUserNumber].UserID = UserID;
 
-						bSendSuccess = SendPacket(&ClientSocket, EPacket::S2C_Login_UserIDFailureReq);
+						bSendSuccess = PacketMaker::SendPacket(&ClientSocket, EPacket::S2C_Login_UserIDFailureReq);
 						if (!bSendSuccess)
 						{
 							SendError(ClientSocket);
@@ -377,7 +351,7 @@ unsigned WINAPI ServerThread(void* arg)
 			case EPacket::C2S_Login_MakeNewUserReq:
 			{
 				cout << "Make New User Requested" << endl;
-				bSendSuccess = SendPacket(&ClientSocket, EPacket::S2C_Login_NewUserNickNameReq);
+				bSendSuccess = PacketMaker::SendPacket(&ClientSocket, EPacket::S2C_Login_NewUserNickNameReq);
 				if (!bSendSuccess)
 				{
 					SendError(ClientSocket);
@@ -388,7 +362,7 @@ unsigned WINAPI ServerThread(void* arg)
 			case EPacket::C2S_Login_UserIDReq:
 			{
 				cout << "C2S_Login_UserIDReq" << endl;
-				bSendSuccess = SendPacket(&ClientSocket, EPacket::S2C_Login_UserIDReq);
+				bSendSuccess = PacketMaker::SendPacket(&ClientSocket, EPacket::S2C_Login_UserIDReq);
 				if (!bSendSuccess)
 				{
 					SendError(ClientSocket);
@@ -413,13 +387,13 @@ unsigned WINAPI ServerThread(void* arg)
 				if (Sql_Result->rowsCount() > 0)
 				{
 					cout << "NickName Already Exist" << endl;
-					bSendSuccess = SendPacket(&ClientSocket, EPacket::S2C_CastMessage, "Nick Name Already Exist.");
+					bSendSuccess = PacketMaker::SendPacket(&ClientSocket, EPacket::S2C_CastMessage, "Nick Name Already Exist.");
 					if (!bSendSuccess)
 					{
 						SendError(ClientSocket);
 						break;
 					}
-					bSendSuccess = SendPacket(&ClientSocket, EPacket::S2C_Login_NewUserNickNameReq);
+					bSendSuccess = PacketMaker::SendPacket(&ClientSocket, EPacket::S2C_Login_NewUserNickNameReq);
 					if (!bSendSuccess)
 					{
 						SendError(ClientSocket);
@@ -429,7 +403,7 @@ unsigned WINAPI ServerThread(void* arg)
 				else
 				{
 					TempUserList[TempUserNumber].NickName = UserNickName;
-					bSendSuccess = SendPacket(&ClientSocket, EPacket::S2C_Login_NewUserPwdReq);
+					bSendSuccess = PacketMaker::SendPacket(&ClientSocket, EPacket::S2C_Login_NewUserPwdReq);
 					if (!bSendSuccess)
 					{
 						SendError(ClientSocket);
@@ -459,12 +433,12 @@ unsigned WINAPI ServerThread(void* arg)
 				Sql_PreStatement->execute();
 
 				cout << "New User Registed" << endl;
-				bSendSuccess = SendPacket(&ClientSocket, EPacket::S2C_CastMessage, "<< New User Registed! >>");
+				bSendSuccess = PacketMaker::SendPacket(&ClientSocket, EPacket::S2C_CastMessage, "<< New User Registed! >>");
 				if (!bSendSuccess)
 				{
 					SendError(ClientSocket);
 					break;
-				}bSendSuccess = SendPacket(&ClientSocket, EPacket::S2C_Login_UserIDReq);
+				}bSendSuccess = PacketMaker::SendPacket(&ClientSocket, EPacket::S2C_Login_UserIDReq);
 				if (!bSendSuccess)
 				{
 					SendError(ClientSocket);

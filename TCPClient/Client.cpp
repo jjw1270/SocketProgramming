@@ -15,12 +15,13 @@ using namespace std;
 #pragma comment(lib, "ws2_32")
 
 EPacket CurrentPacket;
+bool bIsRunning = true;
 
 unsigned WINAPI RecvThread(void* arg)
 {
 	SOCKET ServerSocket = *(SOCKET*)arg;
 
-	while (true)
+	while (bIsRunning)
 	{
 		unsigned short PacketSize = 0;
 		int RecvByte = recv(ServerSocket, (char*)(&PacketSize), 2, MSG_WAITALL);
@@ -37,8 +38,10 @@ unsigned WINAPI RecvThread(void* arg)
 			int RecvByte = recv(ServerSocket, Buffer, PacketSize, MSG_WAITALL);
 			if (RecvByte == 0 || RecvByte < 0) //close, Error
 			{
-				break;
+				//Recv Error
 				//disconnect
+				bIsRunning = false;
+				break;
 			}
 			else
 			{
@@ -83,23 +86,34 @@ unsigned WINAPI SendThread(void* arg)
 {
 	SOCKET ServerSocket = *(SOCKET*)arg;
 
-	bool bIsRunning = true;
 	while (bIsRunning)
 	{
+		bool bSendSuccess = false;
 		switch (CurrentPacket)
 		{
 		case EPacket::S2C_Login_UserIDReq:
 		{
 			cout << "Enter User ID : ";
-			char UserID[100] = { 0, };
+			char UserID[101] = { 0, };
 			cin >> UserID;
 			cin.ignore();
 
-			pair<char*, int> BufferData = PacketMaker::MakePacket(EPacket::C2S_Login_UserIDAck, UserID);
-			int SendByte = send(ServerSocket, BufferData.first, BufferData.second, 0);
-			if (SendByte > 0)
+			if (strlen(UserID) > 100)
+			{
+				cout << "User ID is too long." << endl;
+				continue;
+			}
+
+			bSendSuccess = PacketMaker::SendPacket(&ServerSocket, EPacket::C2S_Login_UserIDAck, UserID);
+			if (bSendSuccess)
 			{
 				CurrentPacket = EPacket::None;
+			}
+			else
+			{
+				//Send Error
+				bIsRunning = false;
+				break;
 			}
 		}
 		break;
@@ -126,22 +140,32 @@ unsigned WINAPI SendThread(void* arg)
 			case 'y':
 			case 'Y':
 			{
-				pair<char*, int> BufferData = PacketMaker::MakePacket(EPacket::C2S_Login_MakeNewUserReq);
-				int SendByte = send(ServerSocket, BufferData.first, BufferData.second, 0);
-				if (SendByte > 0)
+				bSendSuccess = PacketMaker::SendPacket(&ServerSocket, EPacket::C2S_Login_MakeNewUserReq);
+				if (bSendSuccess)
 				{
 					CurrentPacket = EPacket::None;
+				}
+				else
+				{
+					//Send Error
+					bIsRunning = false;
+					break;
 				}
 			}
 			break;
 			case 'n':
 			case 'N':
 			{
-				pair<char*, int> BufferData = PacketMaker::MakePacket(EPacket::C2S_Login_UserIDReq);
-				int SendByte = send(ServerSocket, BufferData.first, BufferData.second, 0);
-				if (SendByte > 0)
+				bSendSuccess = PacketMaker::SendPacket(&ServerSocket, EPacket::C2S_Login_UserIDReq);
+				if (bSendSuccess)
 				{
 					CurrentPacket = EPacket::None;
+				}
+				else
+				{
+					//Send Error
+					bIsRunning = false;
+					break;
 				}
 			}
 			break;
@@ -154,34 +178,55 @@ unsigned WINAPI SendThread(void* arg)
 		case EPacket::S2C_Login_NewUserNickNameReq:
 		{
 			cout << "Please Enter New User Nick Name : ";
-			char UserNickName[100] = { 0, };
+			char UserNickName[101] = { 0, };
 			cin >> UserNickName;
 			cin.ignore();
 
-			pair<char*, int> BufferData = PacketMaker::MakePacket(EPacket::C2S_Login_NewUserNickNameAck, UserNickName);
-			int SendByte = send(ServerSocket, BufferData.first, BufferData.second, 0);
-			if (SendByte > 0)
+			if (strlen(UserNickName) > 100)
+			{
+				cout << "Nick Name is too long." << endl;
+				continue;
+			}
+
+			bSendSuccess = PacketMaker::SendPacket(&ServerSocket, EPacket::C2S_Login_NewUserNickNameAck, UserNickName);
+			if (bSendSuccess)
 			{
 				CurrentPacket = EPacket::None;
+			}
+			else
+			{
+				//Send Error
+				bIsRunning = false;
+				break;
 			}
 		}
 		break;
 		case EPacket::S2C_Login_NewUserPwdReq:
 		{
 			cout << "Please Enter New User Password : ";
-			char UserPwd[100] = { 0, };
+			char UserPwd[101] = { 0, };
 			cin >> UserPwd;
 			cin.ignore();
 
-			pair<char*, int> BufferData = PacketMaker::MakePacket(EPacket::C2S_Login_NewUserPwdAck, UserPwd);
-			int SendByte = send(ServerSocket, BufferData.first, BufferData.second, 0);
-			if (SendByte > 0)
+			if (strlen(UserPwd) > 100)
+			{
+				cout << "Password is too long." << endl;
+				continue;
+			}
+
+			bSendSuccess = PacketMaker::SendPacket(&ServerSocket, EPacket::C2S_Login_NewUserPwdAck, UserPwd);
+			if (bSendSuccess)
 			{
 				CurrentPacket = EPacket::None;
 			}
+			else
+			{
+				//Send Error
+				bIsRunning = false;
+				break;
+			}
 		}
 		break;
-
 
 		default:
 			break;
@@ -236,6 +281,11 @@ int main()
 	ThreadHandles[1] = (HANDLE)_beginthreadex(nullptr, 0, SendThread, (void*)&ServerSocket, 0, nullptr);
 
 	WaitForMultipleObjects(2, ThreadHandles, TRUE, INFINITE);
+
+	// Clean Up
+
+	CloseHandle(ThreadHandles[1]);
+	CloseHandle(ThreadHandles[0]);
 
 	WSACleanup();
 

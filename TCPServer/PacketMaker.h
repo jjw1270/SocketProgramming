@@ -5,12 +5,19 @@
 #include <string>
 using namespace std;
 
+#include <WinSock2.h>
+
 class PacketMaker
 {
 protected:
 	static const int DefaultBufferSize = 4;
 
 public:
+	static bool SendPacket(SOCKET* ClientSocket, EPacket PacketToSend);
+
+	static bool SendPacket(SOCKET* ClientSocket, EPacket PacketToSend, const char* MessageToSend);
+
+protected:
 	// Use this PacketMaker if does not have params
 	static pair<char*, int> MakePacket(EPacket Type);
 
