@@ -29,8 +29,6 @@ enum class EPacket
 	S2C_Login_UserPwdFailureReq			= 122,
 	C2S_Login_UserPwdReq				= 123,
 
-	S2C_Login_LoginAck					= 130,
-
 
 	S2C_QuitClient = 400,
 

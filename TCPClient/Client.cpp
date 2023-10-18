@@ -80,14 +80,6 @@ unsigned WINAPI RecvThread(void* arg)
 				//case EPacket::S2C_Login_UserPwdFailureReq:
 				//	//cout << "User Pwd Failure Requested" << endl;
 				//	break;
-				case EPacket::S2C_Login_LoginAck:
-				{
-					cout << "Server Send Messages : ";
-					char Message[1024] = { 0, };
-					memcpy(&Message, Buffer + 2, PacketSize - 2);
-					cout << Message << endl;
-				}
-					break;
 				}
 			}
 		}
@@ -336,11 +328,7 @@ unsigned WINAPI SendThread(void* arg)
 			}
 		}
 		break;
-		case EPacket::S2C_Login_LoginAck:
-		{
-			CurrentPacket = EPacket::None;
-		}
-		break;
+
 		default:
 			break;
 		}
@@ -357,6 +345,7 @@ int main()
 	if (Result != 0)
 	{
 		cout << "WSAStartup Error" << endl;
+		system("pause");
 		exit(-1);
 	}
 
@@ -364,6 +353,7 @@ int main()
 	if (ServerSocket == SOCKET_ERROR)
 	{
 		cout << "ServerSocket Error" << endl;
+		system("pause");
 		exit(-1);
 	}
 
@@ -376,13 +366,22 @@ int main()
 	if (Result == SOCKET_ERROR)
 	{
 		cout << "inet_pton Error : " << GetLastError() << endl;
+		system("pause");
 		exit(-1);
 	}
 
 	Result = connect(ServerSocket, (SOCKADDR*)&ServerSock, sizeof(ServerSock));
 	if (Result == SOCKET_ERROR)
 	{
-		cout << "connect Error : " << GetLastError() << endl;
+		if (GetLastError() == 10061)
+		{
+			cout << "Server Is Sleeping.." << endl;
+		}
+		else
+		{
+			cout << "connect Error : " << GetLastError() << endl;
+		}
+		system("pause");
 		exit(-1);
 	}
 	else
@@ -401,7 +400,9 @@ int main()
 	CloseHandle(ThreadHandles[1]);
 	CloseHandle(ThreadHandles[0]);
 
+	closesocket(ServerSocket);
 	WSACleanup();
 
+	system("pause");
 	return 0;
 }

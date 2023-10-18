@@ -17,12 +17,14 @@ public:
 
 	static bool SendPacket(SOCKET* ClientSocket, EPacket PacketToSend, const char* MessageToSend);
 
+	static bool SendPacketToAllConnectedClients(const fd_set& Reads, EPacket PacketToSend);
+
 protected:
 	// Use this PacketMaker if does not have params
-	static pair<char*, int> MakePacket(EPacket Type);
+	static pair<char*, int> MakeBuffer(EPacket Type);
 
 	// const char* params
-	static pair<char*, int> MakePacket(EPacket Type, const char* NewData);
+	static pair<char*, int> MakeBuffer(EPacket Type, const char* NewData);
 
 protected:
 	static char* MakeHeader(char* Buffer, EPacket Type, unsigned short Size);

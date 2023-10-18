@@ -5,7 +5,7 @@ using namespace std;
 
 bool PacketMaker::SendPacket(SOCKET* ServerSocket, const EPacket& PacketToSend)
 {
-	pair<char*, int> BufferData = MakePacket(PacketToSend);
+	pair<char*, int> BufferData = MakeBuffer(PacketToSend);
 
 	int SendByte = send(*ServerSocket, BufferData.first, BufferData.second, 0);
 	if (SendByte <= 0)
@@ -18,7 +18,7 @@ bool PacketMaker::SendPacket(SOCKET* ServerSocket, const EPacket& PacketToSend)
 
 bool PacketMaker::SendPacket(SOCKET* ServerSocket, const EPacket& PacketToSend, const char* MessageToSend)
 {
-	pair<char*, int> BufferData = MakePacket(PacketToSend, MessageToSend);
+	pair<char*, int> BufferData = MakeBuffer(PacketToSend, MessageToSend);
 
 	int SendByte = send(*ServerSocket, BufferData.first, BufferData.second, 0);
 	if (SendByte <= 0)
@@ -29,7 +29,7 @@ bool PacketMaker::SendPacket(SOCKET* ServerSocket, const EPacket& PacketToSend, 
 	return true;
 }
 
-pair<char*, int> PacketMaker::MakePacket(EPacket Type)
+pair<char*, int> PacketMaker::MakeBuffer(EPacket Type)
 {
 	int BufferSize = DefaultBufferSize;
 	char* Buffer = new char[BufferSize];
@@ -39,7 +39,7 @@ pair<char*, int> PacketMaker::MakePacket(EPacket Type)
 	return make_pair(Buffer, BufferSize);
 }
 
-pair<char*, int> PacketMaker::MakePacket(EPacket Type, const char* NewData)
+pair<char*, int> PacketMaker::MakeBuffer(EPacket Type, const char* NewData)
 {
 	//size code Data(UserID)
 	//[][] [][] [가변 데이타]

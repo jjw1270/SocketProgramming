@@ -504,7 +504,7 @@ unsigned WINAPI ServerThread(void* arg)
 
 						string WelcomeMessage = "Welcome, " + UserList[UserNumber].NickName + "!";
 						
-						bSendSuccess = PacketMaker::SendPacket(&ClientSocket, EPacket::S2C_Login_LoginAck, WelcomeMessage.data());
+						bSendSuccess = PacketMaker::SendPacket(&ClientSocket, EPacket::S2C_CastMessage, WelcomeMessage.data());
 						if (!bSendSuccess)
 						{
 							SendError(ClientSocket);
