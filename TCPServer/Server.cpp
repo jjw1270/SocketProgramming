@@ -132,7 +132,7 @@ int main()
 	}
 	catch (sql::SQLException e)
 	{
-		cout << "Could not connect to server. Error message: " << e.what() << endl;
+		cout << "Could not connect to data base : " << e.what() << endl;
 		system("pause");
 		exit(-1);
 	}
@@ -143,15 +143,16 @@ int main()
 	int Result = WSAStartup(MAKEWORD(2, 2), &WsaData);
 	if (Result != 0)
 	{
-		cout << "Error On StartUp" << endl;
+		cout << "Error On StartUp : " << GetLastError() << endl;
+		system("pause");
 		exit(-1);
 	}
 
 	SOCKET ListenSocket = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (ListenSocket == INVALID_SOCKET)
 	{
-		cout << "ListenSocket Error" << endl;
-		cout << "Socket Error Num : " << GetLastError() << endl;
+		cout << "ListenSocket Error : " << GetLastError() << endl;
+		system("pause");
 		exit(-1);
 	}
 
@@ -164,16 +165,15 @@ int main()
 	Result = _WINSOCK2API_::bind(ListenSocket, (SOCKADDR*)&ListenSockAddr, sizeof(ListenSockAddr));
 	if (Result == SOCKET_ERROR)
 	{
-		cout << "Bind Error" << endl;
-		cout << "Socket Error Num : " << GetLastError() << endl;
+		cout << "Bind Error : " << GetLastError() << endl;
+		system("pause");
 		exit(-1);
 	}
 
 	Result = listen(ListenSocket, SOMAXCONN);  //Socket, 한번에 요청 가능한 최대 접속 승인 수
 	if (Result == SOCKET_ERROR)
 	{
-		cout << "listen Error" << endl;
-		cout << "Socket Error Num : " << GetLastError() << endl;
+		cout << "listen Error : " << GetLastError() << endl;
 		system("pause");
 		exit(-1);
 	}
@@ -185,7 +185,7 @@ int main()
 	FD_ZERO(&Reads);
 	FD_SET(ListenSocket, &Reads);
 
-	cout << "-----------Launch Server------------" << endl;
+	cout << "-----------------Launch Server-----------------" << endl;
 
 	while (true)
 	{
@@ -193,12 +193,7 @@ int main()
 
 		int ChangeSocketCount = select(0, &CopyReads, 0, 0, &Timeout);
 
-		if (ChangeSocketCount == 0)
-		{
-			//다른 처리 
-			continue;
-		}
-		else
+		if (ChangeSocketCount > 0)
 		{
 			for (int i = 0; i < (int)Reads.fd_count; ++i)
 			{
@@ -216,7 +211,7 @@ int main()
 						{
 							cout << "Accept Error" << endl;
 							cout << "Socket Error Num : " << GetLastError() << endl;
-							exit(-1);
+							continue;
 						}
 
 						FD_SET(ClientSocket, &Reads);
@@ -224,6 +219,8 @@ int main()
 						char IP[1024] = { 0, };
 						inet_ntop(AF_INET, &ClientSocketAddr.sin_addr.s_addr, IP, 1024);
 						cout << "connected : " << IP << endl;
+
+						// create thread
 
 						// send req login
 						ReqUserID(&ClientSocket);
@@ -387,6 +384,11 @@ int main()
 				}
 			}
 		}
+		else
+		{
+			// when no changes on socket count while timeout
+			continue;
+		}
 	}
 
 	// Clean Up
@@ -397,6 +399,8 @@ int main()
 	delete Sql_Statement;
 	delete Sql_PreStatement;
 	delete Sql_Connection;
+
+	system("pause");
 
 	return 0;
 }
@@ -418,3 +422,4 @@ void RecvError(SOCKET& Soket)
 	inet_ntop(AF_INET, &ClientSocketAddr.sin_addr.s_addr, IP, 1024);
 	cout << "disconnected : " << IP << endl;
 }
+
