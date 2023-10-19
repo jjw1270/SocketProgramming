@@ -91,7 +91,7 @@ int main()
 	try
 	{
 		Sql_Driver = get_driver_instance();
-		Sql_Connection = Sql_Driver->connect(Server, Username, Password);  // 서버에 연결
+		Sql_Connection = Sql_Driver->connect(Server, Username, Password);
 		cout << "Done!" << endl;
 	}
 	catch (sql::SQLException e)
@@ -104,7 +104,7 @@ int main()
 
 	Sql_Connection->setSchema("tcpproject");
 	Sql_Connection->setClientOption("charset", "utf8");
-
+	
 	cout << "Starting Server... ";
 
 	WSADATA WsaData;
@@ -141,7 +141,7 @@ int main()
 		exit(-1);
 	}
 
-	Result = listen(ListenSocket, SOMAXCONN);  //Socket, 한번에 요청 가능한 최대 접속 승인 수
+	Result = listen(ListenSocket, SOMAXCONN);
 	if (Result == SOCKET_ERROR)
 	{
 		cout << "Fail." << endl;

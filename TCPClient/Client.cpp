@@ -14,7 +14,7 @@ using namespace std;
 
 #pragma comment(lib, "ws2_32")
 
-EPacket CurrentPacket;
+EPacket CurrentPacket = EPacket::None;
 bool bIsRunning = true;
 
 unsigned WINAPI RecvThread(void* arg)
