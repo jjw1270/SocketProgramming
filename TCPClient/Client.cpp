@@ -328,6 +328,11 @@ unsigned WINAPI SendThread(void* arg)
 			string ChatInput;
 			getline(cin, ChatInput);
 
+			if (ChatInput.length() == 0)
+			{
+				break;
+			}
+
 			bSendSuccess = PacketMaker::SendPacket(&ServerSocket, EPacket::C2S_Chat, ChatInput.data());
 			if (!bSendSuccess)
 			{
