@@ -23,7 +23,11 @@ bool PacketMaker::SendPacket(SOCKET* ServerSocket, const EPacket& PacketToSend, 
 	int SendByte = send(*ServerSocket, BufferData.first, BufferData.second, 0);
 	if (SendByte <= 0)
 	{
-		cout << "Send Error" << GetLastError() << endl;
+		cout << "Send Error : " << GetLastError() << endl;
+		if (GetLastError() == 10054)
+		{
+			cout << "Server Closed." << endl;
+		}
 		return false;
 	}
 	return true;

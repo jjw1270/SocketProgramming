@@ -27,7 +27,8 @@ unsigned WINAPI RecvThread(void* arg)
 		int RecvByte = recv(ServerSocket, (char*)(&PacketSize), 2, MSG_WAITALL);
 		if (RecvByte == 0 || RecvByte < 0) //close, Error
 		{
-			//disconnect
+			cout << "Recv Error : " << GetLastError() << endl;
+			bIsRunning = false;
 			break;
 		}
 		else
@@ -38,8 +39,7 @@ unsigned WINAPI RecvThread(void* arg)
 			int RecvByte = recv(ServerSocket, Buffer, PacketSize, MSG_WAITALL);
 			if (RecvByte == 0 || RecvByte < 0) //close, Error
 			{
-				//Recv Error
-				//disconnect
+				cout << "Recv Error : " << GetLastError() << endl;
 				bIsRunning = false;
 				break;
 			}
@@ -113,7 +113,6 @@ unsigned WINAPI SendThread(void* arg)
 			else
 			{
 				//Send Error
-				cout << "Send Error : " << GetLastError() << endl;
 				bIsRunning = false;
 				goto EndThread;
 			}
@@ -151,7 +150,6 @@ unsigned WINAPI SendThread(void* arg)
 				else
 				{
 					//Send Error
-					cout << "Send Error : " << GetLastError() << endl;
 					bIsRunning = false;
 					goto EndThread;
 				}
@@ -168,7 +166,6 @@ unsigned WINAPI SendThread(void* arg)
 				else
 				{
 					//Send Error
-					cout << "Send Error : " << GetLastError() << endl;
 					bIsRunning = false;
 					goto EndThread;
 				}
@@ -201,7 +198,6 @@ unsigned WINAPI SendThread(void* arg)
 			else
 			{
 				//Send Error
-				cout << "Send Error : " << GetLastError() << endl;
 				bIsRunning = false;
 				goto EndThread;
 			}
@@ -228,7 +224,6 @@ unsigned WINAPI SendThread(void* arg)
 			else
 			{
 				//Send Error
-				cout << "Send Error : " << GetLastError() << endl;
 				bIsRunning = false;
 				goto EndThread;
 			}
@@ -255,7 +250,6 @@ unsigned WINAPI SendThread(void* arg)
 			else
 			{
 				//Send Error
-				cout << "Send Error : " << GetLastError() << endl;
 				bIsRunning = false;
 				goto EndThread;
 			}
@@ -294,7 +288,6 @@ unsigned WINAPI SendThread(void* arg)
 				else
 				{
 					//Send Error
-					cout << "Send Error : " << GetLastError() << endl;
 					bIsRunning = false;
 					goto EndThread;
 				}
@@ -311,7 +304,6 @@ unsigned WINAPI SendThread(void* arg)
 				else
 				{
 					//Send Error
-					cout << "Send Error : " << GetLastError() << endl;
 					bIsRunning = false;
 					goto EndThread;
 				}
@@ -337,7 +329,6 @@ unsigned WINAPI SendThread(void* arg)
 			if (!bSendSuccess)
 			{
 				//Send Error
-				cout << "Send Error : " << GetLastError() << endl;
 				bIsRunning = false;
 				goto EndThread;
 			}
