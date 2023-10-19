@@ -8,12 +8,15 @@ using namespace std;
 #include "Packet.h"
 #include "PacketMaker.h"
 
+
 //--mysql
 #include "mysql_connection.h"
 #include <cppconn/driver.h>
 #include <cppconn/exception.h>
 #include <cppconn/prepared_statement.h>
 //--
+
+#include "MyUtility.h"
 
 #include <WinSock2.h>
 #include <WS2tcpip.h>
@@ -88,7 +91,7 @@ int main()
 	try
 	{
 		Sql_Driver = get_driver_instance();
-		Sql_Connection = Sql_Driver->connect(Server, Username, Password);  // ì„œë²„ì— ì—°ê²°
+		Sql_Connection = Sql_Driver->connect(Server, Username, Password);  // ¼­¹ö¿¡ ¿¬°á
 		cout << "Done!" << endl;
 	}
 	catch (sql::SQLException e)
@@ -138,7 +141,7 @@ int main()
 		exit(-1);
 	}
 
-	Result = listen(ListenSocket, SOMAXCONN);  //Socket, í•œë²ˆì— ìš”ì²­ ê°€ëŠ¥í•œ ìµœëŒ€ ì ‘ì† ìŠ¹ì¸ ìˆ˜
+	Result = listen(ListenSocket, SOMAXCONN);  //Socket, ÇÑ¹ø¿¡ ¿äÃ» °¡´ÉÇÑ ÃÖ´ë Á¢¼Ó ½ÂÀÎ ¼ö
 	if (Result == SOCKET_ERROR)
 	{
 		cout << "Fail." << endl;
@@ -436,7 +439,7 @@ unsigned WINAPI ServerThread(void* arg)
 				// Check NickName already exist in db (NickName cant overlaped)
 				string SqlQuery = "SELECT * FROM userconfig WHERE NickName = ?";
 				sql::PreparedStatement* Sql_PreStatement = Sql_Connection->prepareStatement(SqlQuery);
-				Sql_PreStatement->setString(1, UserNickName);
+				Sql_PreStatement->setString(1, MyUtility::MultibyteToUtf8(UserNickName));
 				sql::ResultSet* Sql_Result = Sql_PreStatement->executeQuery();
 
 				if (Sql_Result->rowsCount() > 0)
@@ -482,7 +485,7 @@ unsigned WINAPI ServerThread(void* arg)
 				sql::PreparedStatement* Sql_PreStatement = Sql_Connection->prepareStatement(SqlQuery);
 				Sql_PreStatement->setString(1, TempUserList[UserNumber].UserID);
 				Sql_PreStatement->setString(2, NewUserPwd);
-				Sql_PreStatement->setString(3, TempUserList[UserNumber].NickName);
+				Sql_PreStatement->setString(3, MyUtility::MultibyteToUtf8(TempUserList[UserNumber].NickName));
 				Sql_PreStatement->execute();
 
 				printf("[%d] New User Registed\n", UserNumber);
@@ -520,7 +523,7 @@ unsigned WINAPI ServerThread(void* arg)
 						// if correct
 						printf("[%d] Password Matched\n", UserNumber);
 
-						string UserNickName = Sql_Result->getString("NickName");
+						string UserNickName = MyUtility::Utf8ToMultibyte(Sql_Result->getString("NickName"));
 
 						// Check Login Overlaping
 						bool bIsLoginOverlap = false;
@@ -628,9 +631,11 @@ unsigned WINAPI ServerThread(void* arg)
 				// Add to User Chatting Log
 				string SqlQuery = "INSERT INTO chatlog(NickName, Chat) VALUES(?,?)";
 				sql::PreparedStatement* Sql_PreStatement = Sql_Connection->prepareStatement(SqlQuery);
-				Sql_PreStatement->setString(1, ChatUserNickName);
-				Sql_PreStatement->setString(2, RecvChat);    // Korean - Error...
+				Sql_PreStatement->setString(1, MyUtility::MultibyteToUtf8(ChatUserNickName));
+				Sql_PreStatement->setString(2, MyUtility::MultibyteToUtf8(RecvChat));
 				Sql_PreStatement->execute();
+
+				delete Sql_PreStatement;
 			}
 			break;
 			default:

@@ -347,7 +347,6 @@ unsigned WINAPI SendThread(void* arg)
 			break;
 		}
 	}
-
 EndThread:
 	return 0;
 }

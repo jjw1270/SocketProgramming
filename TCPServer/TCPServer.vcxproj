@@ -130,10 +130,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="MyUtility.cpp" />
     <ClCompile Include="PacketMaker.cpp" />
     <ClCompile Include="Server.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="MyUtility.h" />
     <ClInclude Include="Packet.h" />
     <ClInclude Include="PacketMaker.h" />
   </ItemGroup>
