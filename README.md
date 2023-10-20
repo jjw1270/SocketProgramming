@@ -2,6 +2,8 @@
 
 ## TCP 채팅서버 구현
 
+- 시연 영상 (유튜브로 이동합니다)
+
 <a href="https://youtu.be/tOvL45XHbqU">
   <img src="http://img.youtube.com/vi/tOvL45XHbqU/0.jpg" width="800" height="500" alt="Video Label">
 </a>
