@@ -9,26 +9,29 @@ using namespace std;
 #include <WinSock2.h>
 #include <ws2tcpip.h>
 
+#include <mutex>
+
 #include "PacketMaker.h"
 #include "Packet.h"
 
 #pragma comment(lib, "ws2_32")
 
+mutex Mutex;
+
 EPacket CurrentPacket = EPacket::None;
-bool bIsRunning = true;
 
 unsigned WINAPI RecvThread(void* arg)
 {
 	SOCKET ServerSocket = *(SOCKET*)arg;
 
-	while (bIsRunning)
+	while (true)
 	{
 		unsigned short PacketSize = 0;
 		int RecvByte = recv(ServerSocket, (char*)(&PacketSize), 2, MSG_WAITALL);
 		if (RecvByte == 0 || RecvByte < 0) //close, Error
 		{
+			lock_guard<mutex> lock(Mutex);
 			cout << "Recv Error : " << GetLastError() << endl;
-			bIsRunning = false;
 			break;
 		}
 		else
@@ -39,8 +42,8 @@ unsigned WINAPI RecvThread(void* arg)
 			int RecvByte = recv(ServerSocket, Buffer, PacketSize, MSG_WAITALL);
 			if (RecvByte == 0 || RecvByte < 0) //close, Error
 			{
+				lock_guard<mutex> lock(Mutex);
 				cout << "Recv Error : " << GetLastError() << endl;
-				bIsRunning = false;
 				break;
 			}
 			else
@@ -87,8 +90,15 @@ unsigned WINAPI SendThread(void* arg)
 {
 	SOCKET ServerSocket = *(SOCKET*)arg;
 
-	while (bIsRunning)
+	while (true)
 	{
+		if (CurrentPacket == EPacket::None)
+		{
+			continue;
+		}
+
+		lock_guard<mutex> lock(Mutex);
+
 		bool bSendSuccess = false;
 		switch (CurrentPacket)
 		{
@@ -111,9 +121,7 @@ unsigned WINAPI SendThread(void* arg)
 				CurrentPacket = EPacket::None;
 			}
 			else
-			{
-				//Send Error
-				bIsRunning = false;
+			{	//Send Error
 				goto EndThread;
 			}
 		}
@@ -148,9 +156,7 @@ unsigned WINAPI SendThread(void* arg)
 					CurrentPacket = EPacket::None;
 				}
 				else
-				{
-					//Send Error
-					bIsRunning = false;
+				{	//Send Error
 					goto EndThread;
 				}
 			}
@@ -164,9 +170,7 @@ unsigned WINAPI SendThread(void* arg)
 					CurrentPacket = EPacket::None;
 				}
 				else
-				{
-					//Send Error
-					bIsRunning = false;
+				{	//Send Error
 					goto EndThread;
 				}
 			}
@@ -196,9 +200,7 @@ unsigned WINAPI SendThread(void* arg)
 				CurrentPacket = EPacket::None;
 			}
 			else
-			{
-				//Send Error
-				bIsRunning = false;
+			{	//Send Error
 				goto EndThread;
 			}
 		}
@@ -222,9 +224,7 @@ unsigned WINAPI SendThread(void* arg)
 				CurrentPacket = EPacket::None;
 			}
 			else
-			{
-				//Send Error
-				bIsRunning = false;
+			{	//Send Error
 				goto EndThread;
 			}
 		}
@@ -248,9 +248,7 @@ unsigned WINAPI SendThread(void* arg)
 				CurrentPacket = EPacket::None;
 			}
 			else
-			{
-				//Send Error
-				bIsRunning = false;
+			{	//Send Error
 				goto EndThread;
 			}
 
@@ -286,9 +284,7 @@ unsigned WINAPI SendThread(void* arg)
 					CurrentPacket = EPacket::None;
 				}
 				else
-				{
-					//Send Error
-					bIsRunning = false;
+				{	//Send Error
 					goto EndThread;
 				}
 			}
@@ -302,9 +298,7 @@ unsigned WINAPI SendThread(void* arg)
 					CurrentPacket = EPacket::None;
 				}
 				else
-				{
-					//Send Error
-					bIsRunning = false;
+				{	//Send Error
 					goto EndThread;
 				}
 			}
@@ -327,9 +321,7 @@ unsigned WINAPI SendThread(void* arg)
 
 			bSendSuccess = PacketMaker::SendPacket(&ServerSocket, EPacket::C2S_Chat, ChatInput.data());
 			if (!bSendSuccess)
-			{
-				//Send Error
-				bIsRunning = false;
+			{	//Send Error
 				goto EndThread;
 			}
 		}
@@ -400,6 +392,8 @@ int main()
 	WaitForMultipleObjects(2, ThreadHandles, TRUE, INFINITE);
 
 	// Clean Up
+
+	cout << "End Threads" << endl;
 
 	CloseHandle(ThreadHandles[1]);
 	CloseHandle(ThreadHandles[0]);
