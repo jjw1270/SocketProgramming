@@ -393,8 +393,6 @@ int main()
 
 	// Clean Up
 
-	cout << "End Threads" << endl;
-
 	CloseHandle(ThreadHandles[1]);
 	CloseHandle(ThreadHandles[0]);
 
