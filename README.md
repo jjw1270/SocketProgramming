@@ -91,6 +91,10 @@
    - chatlog
       - 유저들이 채팅 내역을 저장하는 테이블
 
+<div align="center">
+  <img src="https://github.com/jjw1270/SocketProgramming/assets/34919593/e6407ac1-d835-47a5-9591-426b879a50cc" width="400"" />
+  <img src="https://github.com/jjw1270/SocketProgramming/assets/34919593/4a58676b-5f9b-4c87-bcf8-26b8f825eb76" width="400" />
+</div>
 
 ---
 ---
